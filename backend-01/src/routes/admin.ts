@@ -82,6 +82,7 @@ router.post('/signin', async (req, res) => {
 router.post('/adminshop', verifyAdminToken, async (req, res) => {
     const adminId = Number(req.user?.id);
     console.log(adminId)
+    const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     // Destructure expected fields from req.body
     const {
         image,
@@ -120,6 +121,13 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
                 Admin: { connect: { id: adminId } },
             },
         });
+
+        if (!timeFormatRegex.test(timein)) {
+            return res.status(400).json({ error: "Invalid timein format. Use HH:MM (24-hour)" });
+        }
+        if (!timeFormatRegex.test(timeout)) {
+            return res.status(400).json({ error: "Invalid timeout format. Use HH:MM (24-hour)" });
+        }
 
         return res.status(201).json({ shop: newShop });
     } catch (error) {

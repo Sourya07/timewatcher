@@ -1,8 +1,9 @@
-import { View, Text, TextInput, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ScrollView, Image, TouchableOpacity, ActivityIndicator, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import axios from 'axios';
+import { router } from 'expo-router';
 
 // Interface for a shop
 interface Shop {
@@ -17,8 +18,8 @@ interface Shop {
 }
 
 export default function App() {
-    const [restaurants, setRestaurants] = useState<Shop[]>([]);
-    const [filteredRestaurants, setFilteredRestaurants] = useState<Shop[]>([]);
+    const [shops, setShops] = useState<Shop[]>([]);
+    const [filtershops, setfiltershops] = useState<Shop[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [search, setSearch] = useState<string>("");
 
@@ -28,11 +29,9 @@ export default function App() {
 
     const fetchShops = async () => {
         try {
-            const res = await axios.get<{ shops: Shop[] }>("http://localhost:3000/api/v1/user/adminshops", { // replace with your API URL
-
-            });
-            setRestaurants(res.data.shops || []);
-            setFilteredRestaurants(res.data.shops || []);
+            const res = await axios.get<{ shops: Shop[] }>("http://localhost:3000/api/v1/user/adminshops");
+            setShops(res.data.shops || []);
+            setfiltershops(res.data.shops || []);
         } catch (error) {
             console.error("Error fetching shops:", error);
         } finally {
@@ -43,15 +42,15 @@ export default function App() {
     const handleSearch = (text: string) => {
         setSearch(text);
         if (text.trim() === "") {
-            setFilteredRestaurants(restaurants);
+            setfiltershops(shops);
         } else {
             const lower = text.toLowerCase();
-            const filtered = restaurants.filter(
+            const filtered = shops.filter(
                 (shop) =>
                     shop.occupation.toLowerCase().includes(lower) ||
                     (shop.name && shop.name.toLowerCase().includes(lower))
             );
-            setFilteredRestaurants(filtered);
+            setfiltershops(filtered);
         }
     };
 
@@ -80,9 +79,25 @@ export default function App() {
                 </View>
             ) : (
                 <ScrollView className="space-y-4">
-                    {filteredRestaurants.map((item, index) => (
-                        <View
+                    {filtershops.map((item, index) => (
+                        <Pressable
                             key={index}
+                            onPress={() => {
+                                router.push({
+                                    pathname: `/shop/${index}` as any, // dynamic route
+                                    params: {
+                                        name: item.name || "",
+                                        image: item.image || "",
+                                        address: item.address,
+                                        mobilenumber: item.mobilenumber,
+                                        occupation: item.occupation,
+                                        timein: item.timein.toString(),
+                                        timeout: item.timeout.toString(),
+                                        price: item.price.toString(),
+                                    },
+                                });
+                            }}
+
                             className="flex-row bg-white border border-gray-100 rounded-xl shadow-sm p-3"
                         >
                             <Image
@@ -119,7 +134,7 @@ export default function App() {
                                     </Text>
                                 </View>
                             </View>
-                        </View>
+                        </Pressable>
                     ))}
                 </ScrollView>
             )}
