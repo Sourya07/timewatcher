@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           Int         @id @default(autoincrement())
+  name         String
+  email        String      @unique
+  password     String
+  adminprofile AdminShop[]
+}
+
+model AdminShop {
+  id           Int     @id @default(autoincrement())
+  image        String? // Optional image URL or base64 string
+  latitude     Float? // Optional latitude
+  longitude    Float? // Optional longitude
+  address      String? // Optional address
+  mobilenumber String
+  occupation   String
+  speclization String?
+  timein       Int
+  timeout      Int
+  price        Int
+  AdminId      Int
+  Admin        Admin   @relation(fields: [AdminId], references: [id])
+}
+
+model User {
+  id       Int          @id @default(autoincrement())
+  name     String
+  email    String       @unique
+  password String
+  profile  userprofile? @relation(name: "UserToUserProfile")
+}
+
+model userprofile {
+  id           Int     @id @default(autoincrement())
+  image        String?
+  latitude     Float?
+  longitude    Float?
+  address      String?
+  mobilenumber String
+  UserID       Int     @unique
+
+  user User @relation(name: "UserToUserProfile", fields: [UserID], references: [id])
+}
