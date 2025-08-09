@@ -1,6 +1,7 @@
-import { View, Text, Image, ScrollView } from 'react-native';
+import { View, Text, Image, ScrollView, SafeAreaView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
+import MultiSlider from "@ptomasroos/react-native-multi-slider";
 
 interface ShopDetailsParams {
     name?: string;
@@ -13,81 +14,111 @@ interface ShopDetailsParams {
     price?: string;
 }
 
+function timeToMinutes(time: string) {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+}
+
+function minutesToTime(minutes: number) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
 export default function ShopDetails() {
     const { name, image, address, mobilenumber, occupation, timein, timeout, price } =
         useLocalSearchParams() as ShopDetailsParams;
 
-    const [remainingTime, setRemainingTime] = useState<string>("");
+    const startMinutes = timein ? timeToMinutes(timein) : 540; // default 09:00
+    const endMinutes = timeout ? timeToMinutes(timeout) : 600; // default 10:00
 
-    useEffect(() => {
-        if (!timein || !timeout) return;
+    const [range, setRange] = useState([startMinutes, endMinutes]);
 
-        const interval = setInterval(() => {
-            const now = new Date();
+    const timeMarks = useMemo(() => {
+        const marks: string[] = [];
+        for (let t = startMinutes; t <= endMinutes; t += 60) {
+            marks.push(minutesToTime(t));
+        }
+        return marks;
+    }, [startMinutes, endMinutes]);
 
-            const [startHour, startMin] = timein.split(":").map(Number);
-            const [endHour, endMin] = timeout.split(":").map(Number);
-
-            const startTime = new Date(now);
-            startTime.setHours(startHour, startMin, 0, 0);
-
-            const endTime = new Date(now);
-            endTime.setHours(endHour, endMin, 0, 0);
-
-            // If timeout is before or equal to timein, move endTime to next day
-            if (endTime <= startTime) {
-                endTime.setDate(endTime.getDate() + 1);
-            }
-
-            let diff = endTime.getTime() - now.getTime();
-
-            if (diff <= 0) {
-                setRemainingTime("Closed");
-                clearInterval(interval);
-                return;
-            }
-
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-            setRemainingTime(
-                `${hours.toString().padStart(2, '0')}:${minutes
-                    .toString()
-                    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-            );
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [timein, timeout]);
     return (
-        <ScrollView className="flex-1 bg-white p-4">
-            <Image
-                source={{ uri: image || 'https://via.placeholder.com/200' }}
-                className="w-full h-48 rounded-lg mb-4"
-            />
+        <SafeAreaView className="bg-[#f0f0f0] flex-1">
+            <ScrollView className="px-4">
 
-            <Text className="text-2xl font-bold">{name || occupation}</Text>
-            <Text className="text-gray-600 mt-1">📍 {address}</Text>
-            <Text className="text-gray-500">📞 {mobilenumber}</Text>
-            <Text className="text-gray-500">
-                ⏱ {timein} - {timeout} mins
-            </Text>
+                {/* Top Image */}
+                <View className="items-center mt-6">
+                    <Image
+                        source={{ uri: image || 'https://via.placeholder.com/200' }}
+                        className="w-40 h-40 rounded-xl border-2 border-white"
+                    />
+                </View>
 
-            {/* Countdown Timer */}
-            {remainingTime && (
-                <Text className="mt-2 text-lg font-semibold text-red-500">
-                    Time left: {remainingTime}
-                </Text>
-            )}
+                {/* Name & Occupation */}
+                <View className="items-center mt-4">
+                    <Text className="text-black text-lg font-bold">{name || occupation}</Text>
+                    <Text className="text-gray-500 text-sm mt-1">{occupation}</Text>
+                </View>
 
-            <Text className="mt-4 text-lg font-semibold text-black">
-                PRICE ₹{price}
-            </Text>
+                {/* Contact Details */}
+                <View className="mt-8 space-y-4">
+                    <View className="bg-white p-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm">📍 Address</Text>
+                        <Text className="text-black mt-1">{address || "Not available"}</Text>
+                    </View>
 
-            <Text className="mt-6 text-base text-gray-700">
-                This is the shop details page. You can add reviews, offers, or a description here.
-            </Text>
-        </ScrollView>
+                    <View className="bg-white mt-2 p-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm">📞 Mobile</Text>
+                        <Text className="text-black mt-1">{mobilenumber || "Not available"}</Text>
+                    </View>
+                </View>
+
+                {/* Shop Timings */}
+                <View className="mt-5 space-y-4">
+                    <View className="bg-white p-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm">⏱ Timings</Text>
+                        <Text className="text-black mt-1">{timein} - {timeout}</Text>
+                    </View>
+
+                    {/* Slider */}
+                    <View className="bg-white p-4 mt-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm mb-2">
+                            Select Time: {minutesToTime(range[0])} - {minutesToTime(range[1])}
+                        </Text>
+                        <MultiSlider
+                            values={range}
+                            sliderLength={300}
+                            onValuesChange={(values) => setRange(values)}
+                            min={startMinutes}
+                            max={endMinutes}
+                            step={10}
+                            selectedStyle={{ backgroundColor: "#00BFFF" }}
+                            unselectedStyle={{ backgroundColor: "#808080" }}
+                            markerStyle={{ backgroundColor: "#00BFFF" }}
+                        />
+                        {/* Time Labels */}
+                        <View className="flex-row justify-between mt-2">
+                            {timeMarks.map((t, i) => (
+                                <Text key={i} className="text-gray-500 text-xs">{t}</Text>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+
+                {/* Price */}
+                <View className="mt-5 bg-white p-4 rounded-xl shadow-sm items-center">
+                    <Text className="text-gray-500 text-sm">💰 Price</Text>
+                    <Text className="text-black mt-1 font-bold">₹{price || "N/A"}</Text>
+                </View>
+
+                {/* Extra Description */}
+                <View className="mt-6 bg-white p-4 rounded-xl shadow-sm">
+                    <Text className="text-gray-500 text-sm">About</Text>
+                    <Text className="text-gray-700 mt-1">
+                        This is the shop details page. You can add reviews, offers, or a description here.
+                    </Text>
+                </View>
+            </ScrollView>
+        </SafeAreaView>
     );
 }

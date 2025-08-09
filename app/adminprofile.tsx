@@ -28,11 +28,13 @@ export default function AdminShopForm({ adminId }: { adminId: number }) {
         price: '',
     });
 
+
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const getLocation = async () => {
         try {
+
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
                 setErrorMsg('Permission to access location was denied');

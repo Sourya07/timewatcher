@@ -42,7 +42,9 @@ const Signin = () => {
             const { token } = response.data;
 
             Alert.alert('Success', 'Signed in successfully');
+            await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('token', token);
+
             router.replace('/adminprofile'); // ✅ Use replace so back button won't go back to signin
 
         } catch (error: any) {

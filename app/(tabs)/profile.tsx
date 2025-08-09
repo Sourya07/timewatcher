@@ -65,7 +65,7 @@ export default function ProfileScreen() {
                 {/* Top Section */}
                 <View className="items-center mt-6">
                     <Image
-                        source={{ uri: userData.profile.image || 'https://via.placeholder.com/150' }}
+                        source={{ uri: userData.profile?.image || 'https://via.placeholder.com/150' }}
                         className="w-20 h-20 rounded-full border-2 border-white"
                     />
                 </View>
@@ -85,14 +85,14 @@ export default function ProfileScreen() {
                 <View className="mt-10 space-y-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm">Member Since</Text>
-                        <Text className="text-black mt-1">👾 {userData.profile.address}</Text>
+                        <Text className="text-black mt-1">👾 {userData.profile?.address}</Text>
                     </View>
 
                 </View>
                 <View className="mt-5 space-y-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm">Member Since</Text>
-                        <Text className="text-black mt-1">👾 {userData.profile.mobilenumber}</Text>
+                        <Text className="text-black mt-1">👾 {userData.profile?.mobilenumber}</Text>
                     </View>
 
                 </View>

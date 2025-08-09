@@ -22,7 +22,7 @@ model Admin {
 }
 
 model AdminShop {
-  id           Int     @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   image        String? // Optional image URL or base64 string
   latitude     Float? // Optional latitude
   longitude    Float? // Optional longitude
@@ -34,7 +34,8 @@ model AdminShop {
   timeout      String
   price        Int
   AdminId      Int
-  Admin        Admin   @relation(fields: [AdminId], references: [id])
+  Admin        Admin     @relation(fields: [AdminId], references: [id])
+  bookings     Booking[]
 }
 
 model User {
@@ -42,6 +43,7 @@ model User {
   name     String
   email    String       @unique
   password String
+  bookings Booking[]
   profile  userprofile? @relation(name: "UserToUserProfile")
 }
 
@@ -55,4 +57,17 @@ model userprofile {
   UserID       Int     @unique
 
   user User @relation(name: "UserToUserProfile", fields: [UserID], references: [id])
+}
+
+model Booking {
+  id        Int      @id @default(autoincrement())
+  shopId    Int
+  userId    Int
+  duration  Int // in minutes
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
+
+  shop AdminShop @relation(fields: [shopId], references: [id])
+  user User      @relation(fields: [userId], references: [id])
 }
