@@ -2,10 +2,9 @@ import { View, Text, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import Custominput from '@/components/Custominput';
 import CustomButton from '@/components/Custombutton';
-import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import axios from 'axios';
 
 const Signin = () => {
     const [isSubmitting, setSubmitting] = useState(false);
@@ -13,6 +12,18 @@ const Signin = () => {
         email: '',
         password: '',
     });
+
+    // ✅ Check token on mount
+    useEffect(() => {
+        const checkToken = async () => {
+            const token = await SecureStore.getItemAsync('token');
+            if (token) {
+                // Redirect if already signed in
+                router.replace('/adminprofile');
+            }
+        };
+        checkToken();
+    }, []);
 
     const submit = async () => {
         if (!form.email || !form.password) {
@@ -32,12 +43,8 @@ const Signin = () => {
 
             Alert.alert('Success', 'Signed in successfully');
             await SecureStore.setItemAsync('token', token);
-            router.push('/adminprofile')
+            router.replace('/adminprofile'); // ✅ Use replace so back button won't go back to signin
 
-            // Optionally save token using AsyncStorage
-            // await AsyncStorage.setItem('token', token);
-
-            // redirect to homepage or dashboard
         } catch (error: any) {
             console.error('Sign in error:', error);
             const message = error.response?.data?.error || error.message || 'Something went wrong';

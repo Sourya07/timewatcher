@@ -81,9 +81,8 @@ router.post('/signin', async (req, res) => {
 
 router.post('/adminshop', verifyAdminToken, async (req, res) => {
     const adminId = Number(req.user?.id);
-    console.log(adminId)
     const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    // Destructure expected fields from req.body
+
     const {
         image,
         latitude,
@@ -98,10 +97,17 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
     } = req.body;
 
     try {
+        // ✅ Validate before DB insert
+        if (!timein || !timeFormatRegex.test(timein)) {
+            return res.status(400).json({ error: "Invalid or missing timein. Use HH:MM (24-hour)" });
+        }
+        if (!timeout || !timeFormatRegex.test(timeout)) {
+            return res.status(400).json({ error: "Invalid or missing timeout. Use HH:MM (24-hour)" });
+        }
+
         const adminExists = await prisma.admin.findUnique({
             where: { id: adminId }
         });
-
         if (!adminExists) {
             return res.status(404).json({ error: 'Admin not found' });
         }
@@ -122,20 +128,12 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
             },
         });
 
-        if (!timeFormatRegex.test(timein)) {
-            return res.status(400).json({ error: "Invalid timein format. Use HH:MM (24-hour)" });
-        }
-        if (!timeFormatRegex.test(timeout)) {
-            return res.status(400).json({ error: "Invalid timeout format. Use HH:MM (24-hour)" });
-        }
-
         return res.status(201).json({ shop: newShop });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: 'Something went wrong' });
     }
 });
-
 router.get('/adminshops', verifyAdminToken, async (req, res) => {
     const adminId = Number(req.user?.id);
 

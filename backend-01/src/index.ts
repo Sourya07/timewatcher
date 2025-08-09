@@ -15,6 +15,6 @@ app.get('/', (req, res) => {
     res.send('Hello from Express + TypeScript!');
 });
 
-app.listen(3000, '0.0.0.0', () => {
+app.listen(3000, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

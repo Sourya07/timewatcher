@@ -30,8 +30,8 @@ model AdminShop {
   mobilenumber String
   occupation   String
   speclization String?
-  timein       Int
-  timeout      Int
+  timein       String
+  timeout      String
   price        Int
   AdminId      Int
   Admin        Admin   @relation(fields: [AdminId], references: [id])

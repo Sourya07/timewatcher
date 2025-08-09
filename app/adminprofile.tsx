@@ -5,6 +5,7 @@ import {
     Alert,
     ScrollView,
     SafeAreaView,
+    TouchableOpacity,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,8 +71,8 @@ export default function AdminShopForm({ adminId }: { adminId: number }) {
             if (!token) throw new Error('User not authenticated');
             const payload = {
                 ...form,
-                timein: Number(form.timein),
-                timeout: Number(form.timeout),
+                timein: form.timein,
+                timeout: form.timeout,
                 price: Number(form.price),
                 AdminId: adminId,
             };
@@ -99,9 +100,17 @@ export default function AdminShopForm({ adminId }: { adminId: number }) {
 
     return (
         <SafeAreaView className="flex-1 bg-white">
+            <TouchableOpacity
+                onPress={() => router.back()}
+                className="absolute top-14 left-4 z-10 bg-gray-50 p-2 rounded-full"
+                style={{ elevation: 2 }}
+            >
+                <Ionicons name="arrow-back" size={20} color="white" />
+            </TouchableOpacity>
             <ScrollView className="flex-1 bg-white px-5"
                 contentContainerStyle={{ paddingBottom: 100 }}
             >
+
                 <View className="gap-8 bg-white rounded p-2 mt-12 ">
                     <Text className="text-xl font-bold text-gray-800">Create Admin Shop</Text>
 

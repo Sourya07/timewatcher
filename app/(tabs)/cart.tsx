@@ -84,7 +84,7 @@ export default function App() {
                             key={index}
                             onPress={() => {
                                 router.push({
-                                    pathname: `/shop/${index}` as any, // dynamic route
+                                    pathname: `/shops/${index}` as any, // dynamic route
                                     params: {
                                         name: item.name || "",
                                         image: item.image || "",
