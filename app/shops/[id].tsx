@@ -45,7 +45,7 @@ export default function ShopDetails() {
     return (
         <SafeAreaView className="bg-[#f0f0f0] flex-1">
             <ScrollView className="px-4">
-
+                2
                 {/* Top Image */}
                 <View className="items-center mt-6">
                     <Image
@@ -83,7 +83,7 @@ export default function ShopDetails() {
                     {/* Slider */}
                     <View className="bg-white p-4 mt-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm mb-2">
-                            Select Time: {minutesToTime(range[0])} - {minutesToTime(range[1])}
+                            Select Time for your slot: {minutesToTime(range[0])} - {minutesToTime(range[1])}
                         </Text>
                         <MultiSlider
                             values={range}
@@ -91,7 +91,7 @@ export default function ShopDetails() {
                             onValuesChange={(values) => setRange(values)}
                             min={startMinutes}
                             max={endMinutes}
-                            step={10}
+                            step={5}
                             selectedStyle={{ backgroundColor: "#00BFFF" }}
                             unselectedStyle={{ backgroundColor: "#808080" }}
                             markerStyle={{ backgroundColor: "#00BFFF" }}
@@ -103,6 +103,11 @@ export default function ShopDetails() {
                             ))}
                         </View>
                     </View>
+                </View>
+
+                <View className="bg-white mt-2 p-4 rounded-xl shadow-sm">
+                    <Text className="text-gray-500 text-sm">Sloted booked</Text>
+                    <Text className="text-black mt-1">  </Text>
                 </View>
 
                 {/* Price */}
