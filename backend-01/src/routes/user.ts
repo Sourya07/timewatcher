@@ -2,7 +2,8 @@ import express from 'express';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '../middleware/usermiddleware';
 
@@ -11,6 +12,16 @@ const prisma = new PrismaClient();
 
 const router = express.Router();
 const JWT_SECRET = 'your_jwt_secret'; // 🔐 Use env in prod
+
+const transporter = nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    auth: {
+        user: 'baron88@ethereal.email',
+        pass: 'EWyjAsGQCRzgg7mw26'
+    }
+});
+
 
 // Zod Schemas
 const signupSchema = z.object({
@@ -39,29 +50,85 @@ router.get('/signup', (req, res) => {
 })
 
 router.post('/signup', async (req, res) => {
-    const result = signupSchema.safeParse(req.body);
-    if (!result.success) {
-        return res.status(400).json({ error: result.error.flatten().fieldErrors });
+    try {
+        const result = signupSchema.safeParse(req.body);
+        if (!result.success) {
+            return res.status(400).json({ error: result.error.flatten().fieldErrors });
+        }
+
+        const { email, password, name } = result.data;
+
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await prisma.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                name,
+            },
+        });
+
+        const verificationToken = jwt.sign(
+            { userId: newUser.id },
+            JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        const verificationLink = `http://localhost:3000/api/v1/user/verify-email?token=${verificationToken}`;
+
+        // Send verification email
+        await transporter.sendMail({
+            from: `"MyApp" <baron88@ethereal.email>`,
+            to: email,
+            subject: 'Verify your email',
+            html: `<h2>Welcome, ${name}!</h2>
+                   <p>Click below to verify your email:</p>
+                   <a href="${verificationLink}">Verify Email</a>`
+        });
+
+        return res.status(201).json({ message: 'User created. Please check your email to verify your account.' });
+
+    } catch (error) {
+        console.error('Signup error:', error);
+        return res.status(500).json({ error: 'Server error during signup' });
+    }
+});
+
+
+
+router.get('/verify-email', async (req, res) => {
+    const tokenParam = req.query.token;
+
+    console.log("hello")
+    // Ensure it's a string
+    if (!tokenParam || Array.isArray(tokenParam)) {
+        return res.status(400).json({ error: 'Invalid token' });
     }
 
-    const { email, password, name } = result.data;
+    const token = tokenParam as string;
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-        return res.status(400).json({ error: 'User already exists' });
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (typeof decoded === 'string' || !('userId' in decoded)) {
+            return res.status(400).json({ error: 'Invalid token payload' });
+        }
+
+        console.log(decoded)
+        await prisma.user.update({
+            where: { id: decoded.userId },
+            data: { isVerified: true }
+        });
+        return res.send('Email verified successfully!');
+    } catch (err) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await prisma.user.create({
-        data: {
-            email,
-            password: hashedPassword,
-            name,
-        },
-    });
-
-    return res.status(201).json({ message: 'User created', userId: newUser.id });
 });
 
 // Sign In
@@ -73,8 +140,13 @@ router.post('/signin', async (req, res) => {
 
     const { email, password } = result.data;
 
+
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+    if (!user.isVerified) {
+        return res.status(403).json({ error: 'Please verify your email before logging in.' });
+    }
 
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });

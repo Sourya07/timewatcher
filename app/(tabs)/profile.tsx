@@ -4,16 +4,17 @@ import { View, Text, Image, Pressable, ScrollView, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons'; // ✅ Settings icon
+
 
 export default function ProfileScreen() {
     interface userdata {
         id: number,
-        name: String,
-        email: String,
-        mobilenumber: String
-        avatar: any
-        profile: any
-
+        name: string,
+        email: string,
+        mobilenumber: string,
+        avatar?: any,
+        profile?: any
     }
 
     const [loading, setLoading] = useState(true);
@@ -23,19 +24,15 @@ export default function ProfileScreen() {
         const checkAuth = async () => {
             try {
                 const token = await SecureStore.getItemAsync('usertoken');
-                console.log(token)
                 if (!token) {
-                    // No token → redirect to sign in
                     router.replace('/(authuser)/sign-in');
                     return;
                 }
 
-                // Fetch user data
                 const res = await axios.get('http://localhost:3000/api/v1/user/', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setUserData(res.data);
-                console.log(res.data)
             } catch (error: any) {
                 console.log('Auth check failed:', error.message);
                 router.replace('/(authuser)/sign-in');
@@ -56,21 +53,28 @@ export default function ProfileScreen() {
     }
 
     if (!userData) {
-        return null; // Nothing to render if redirected
+        return null;
     }
 
     return (
         <SafeAreaView className="bg-[#f0f0f0] flex-1">
+            {/* ✅ Top bar with settings icon */}
+            <View className="flex-row justify-end p-4">
+                <Pressable onPress={() => router.push('../userflow/setting')}>
+                    <Ionicons name="settings-outline" size={28} color="black" />
+                </Pressable>
+            </View>
+
             <ScrollView className="px-4">
-                {/* Top Section */}
-                <View className="items-center mt-6">
+                {/* Profile Picture */}
+                <View className="items-center mt-2">
                     <Image
                         source={{ uri: userData.profile?.image || 'https://via.placeholder.com/150' }}
                         className="w-20 h-20 rounded-full border-2 border-white"
                     />
                 </View>
 
-                {/* Name and Username */}
+                {/* Name and Email */}
                 <View className="items-center mt-4">
                     <Text className="text-black text-lg font-bold">{userData.name}</Text>
                     <Text className="text-gray-500 text-sm mt-1">{userData.email}</Text>
@@ -81,20 +85,20 @@ export default function ProfileScreen() {
                     <Text className="text-white font-semibold">Edit Profile</Text>
                 </Pressable>
 
-                {/* Example settings */}
+                {/* Address */}
                 <View className="mt-10 space-y-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm">
-                        <Text className="text-gray-500 text-sm">Member Since</Text>
-                        <Text className="text-black mt-1">👾 {userData.profile?.address}</Text>
+                        <Text className="text-gray-500 text-sm">Address</Text>
+                        <Text className="text-black mt-1">🏠 {userData.profile?.address}</Text>
                     </View>
-
                 </View>
+
+                {/* Mobile Number */}
                 <View className="mt-5 space-y-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm">
-                        <Text className="text-gray-500 text-sm">Member Since</Text>
-                        <Text className="text-black mt-1">👾 {userData.profile?.mobilenumber}</Text>
+                        <Text className="text-gray-500 text-sm">Mobile Number</Text>
+                        <Text className="text-black mt-1">📱 {userData.profile?.mobilenumber}</Text>
                     </View>
-
                 </View>
             </ScrollView>
         </SafeAreaView>
