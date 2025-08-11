@@ -29,7 +29,7 @@ export default function ProfileScreen() {
                     return;
                 }
 
-                const res = await axios.get('http://localhost:3000/api/v1/user/', {
+                const res = await axios.get('https://timewatcher.onrender.com/api/v1/user/', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setUserData(res.data);

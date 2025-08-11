@@ -8,8 +8,8 @@ export interface Shop {
     address: string;
     mobilenumber: string;
     occupation: string;
-    latitude: string;
-    longitude: string
+    latitude:  number;
+    longitude: number;
     timein: number;
     timeout: number;
     price: number;

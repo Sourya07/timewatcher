@@ -109,7 +109,7 @@ export default function AdminShopForm({ adminId }: { adminId: number }) {
                 AdminId: adminId,
             };
 
-            const res = await fetch('http://localhost:3000/api/v1/admin/adminshop', {
+            const res = await fetch('https://timewatcher.onrender.com/api/v1/admin/adminshop', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

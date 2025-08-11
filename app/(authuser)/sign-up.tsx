@@ -23,7 +23,7 @@ const userSignup = () => {
         setSubmitting(true)
 
         try {
-            const response = await axios.post('http://localhost:3000/api/v1/user/signup', form)
+            const response = await axios.post('https://timewatcher.onrender.com/api/v1/user/signup', form)
 
             Alert.alert('Success', 'User signed up successfully')
             router.replace('/sign-in')

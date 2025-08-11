@@ -28,7 +28,7 @@ export default function AdminShopsScreen() {
                 return;
             }
 
-            const res = await axios.get('http://localhost:3000/api/v1/admin/adminshops', {
+            const res = await axios.get('https://timewatcher.onrender.com/api/v1/admin/adminshops', {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },

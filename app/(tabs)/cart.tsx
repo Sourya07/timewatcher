@@ -25,7 +25,13 @@ export default function App() {
 
     const fetchShops = async () => {
         try {
-            const res = await axios.get<{ shops: typeof shops }>("http://localhost:3000/api/v1/user/adminshops");
+            console.log("helllo oop")
+
+
+            const res = await axios.get("https://timewatcher.onrender.com/api/v1/user/adminshops")
+            console.log(res.data)
+            console.log("kl")
+            console.log(res)
             setShops(res.data.shops || []);
             setfiltershops(res.data.shops || []);
         } catch (error) {
@@ -34,6 +40,7 @@ export default function App() {
             setLoading(false);
         }
     };
+
 
     const handleSearch = (text: string) => {
         setSearch(text);
