@@ -8,10 +8,8 @@ import MapViewDirections from "react-native-maps-directions";
 import { useRouter } from 'expo-router';
 import axios from "axios";
 import * as SecureStore from 'expo-secure-store';
-import { API_URL } from '@env';
-console.log(API_URL)
+import { GOOGLE_MAPS_APIKEY } from '@env'
 
-const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw";
 
 export default function ShopDetails() {
 
@@ -106,7 +104,7 @@ export default function ShopDetails() {
                 return;
             }
             // 1️⃣ Send POST request
-            await axios.post(`${API_URL}/api/v1/booking/`, {
+            await axios.post(`http:localhost:3000/api/v1/booking/`, {
                 shopId: Number(id),
                 duration: timeDifference,
                 price: a,
