@@ -1,75 +1,180 @@
-import { View, Text, Image, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, Image, ScrollView, SafeAreaView, ActivityIndicator, Pressable, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useState, useMemo } from 'react';
+import { useShopStore } from '@/Store/shopstore';
+import { useState, useMemo, useEffect, } from 'react';
 import MultiSlider from "@ptomasroos/react-native-multi-slider";
+import MapView, { Marker } from "react-native-maps";
+import MapViewDirections from "react-native-maps-directions";
+import { useRouter } from 'expo-router';
+import axios from "axios";
+import * as SecureStore from 'expo-secure-store';
+import { API_URL } from '@env';
+console.log(API_URL)
 
-interface ShopDetailsParams {
-    name?: string;
-    image?: any;
-    address?: string;
-    mobilenumber?: string;
-    occupation?: string;
-    timein?: string;  // "09:00"
-    timeout?: string; // "10:00"
-    price?: string;
-}
-
-function timeToMinutes(time: string) {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-}
-
-function minutesToTime(minutes: number) {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-}
+const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw";
 
 export default function ShopDetails() {
-    const { name, image, address, mobilenumber, occupation, timein, timeout, price } =
-        useLocalSearchParams() as ShopDetailsParams;
 
-    const startMinutes = timein ? timeToMinutes(timein) : 540; // default 09:00
-    const endMinutes = timeout ? timeToMinutes(timeout) : 600; // default 10:00
+    const router = useRouter(); // ✅ hook for navigation
+    const userLocation = { latitude: 37.78, longitude: -122.406417 };
+
+    const { id } = useLocalSearchParams<{ id: string }>(); // param is "id" not index
+    const getShopById = useShopStore((state) => state.getShopById);
+    console.log(id)
+    const shop = getShopById(id);
+
+    if (!shop) {
+        return (
+            <SafeAreaView className="flex-1 items-center justify-center">
+                <Text>No shop found</Text>
+            </SafeAreaView>
+        );
+    }
+
+    // Convert "hh:mm AM/PM" to minutes
+    const time12hToMinutes = (time?: string) => {
+        if (!time) return 0;
+        const [timePart, modifier] = time.trim().split(" ");
+        let [hours, minutes] = timePart.split(":").map(Number);
+        if (modifier?.toUpperCase() === "PM" && hours !== 12) hours += 12;
+        if (modifier?.toUpperCase() === "AM" && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+    };
+
+    const minutesToTime12h = (minutes: number) => {
+        let hours = Math.floor(minutes / 60);
+        let mins = minutes % 60;
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12 || 12;
+        return `${hours}:${mins.toString().padStart(2, "0")} ${ampm}`;
+    };
+
+    const startMinutes = time12hToMinutes(String(shop.timein));
+    const endMinutes = time12hToMinutes(String(shop.timeout));
 
     const [range, setRange] = useState([startMinutes, endMinutes]);
+    const [selectedTimeRange, setSelectedTimeRange] = useState(
+        `${minutesToTime12h(startMinutes)} - ${minutesToTime12h(endMinutes)}`
+    );
+    const [timeDifference, setTimeDifference] = useState(0);
+    const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-    const timeMarks = useMemo(() => {
-        const marks: string[] = [];
-        for (let t = startMinutes; t <= endMinutes; t += 60) {
-            marks.push(minutesToTime(t));
+    const [startTime, setStartTime] = useState("");
+    const [endTime, setEndTime] = useState("");
+
+    useEffect(() => {
+        if (selectedTimeRange) {
+            const [start, end] = selectedTimeRange.split(" - ").map(time => time.trim());
+            setStartTime(start);
+            setEndTime(end);
         }
-        return marks;
-    }, [startMinutes, endMinutes]);
+    }, [selectedTimeRange]);
+
+    console.log(startTime); // "3:47 PM"
+    console.log(endTime);
+
+    // Debounce effect
+    useEffect(() => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+
+        const timer = setTimeout(() => {
+            const [start, end] = range;
+            let diffMinutes = end - start;
+            if (diffMinutes < 0) diffMinutes += 24 * 60;
+            setTimeDifference(diffMinutes);
+
+
+        }, 1000); // 2 second delay
+
+        console.log(selectedTimeRange)
+        setDebounceTimer(timer);
+
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [range]);
+
+
+    const a = (shop.price) * (timeDifference)
+
+    const handleBooking = async () => {
+        try {
+
+            const usertoken = await SecureStore.getItemAsync('usertoken'); // or however you stored it
+            if (!usertoken) {
+                Alert.alert("Error", "Please log in first.");
+                return;
+            }
+            // 1️⃣ Send POST request
+            await axios.post(`${API_URL}/api/v1/booking/`, {
+                shopId: Number(id),
+                duration: timeDifference,
+                price: a,
+                startTime,
+                endTime
+
+
+            },
+                {
+                    headers: {
+                        Authorization: `Bearer ${usertoken}`
+                    }
+                }
+            );
+
+            // 2️⃣ Navigate after success
+            // router.push({
+            //     pathname: "../booking/[booking]",
+            //     params: { id, totalPrice: a },
+            // });
+            Alert.alert("Booking Completed");
+        }
+        catch (error: any) {
+            console.error("Error creating booking:", error);
+
+            // Check if error response exists (from backend)
+            if (error.response && error.response.data && error.response.data.message) {
+                Alert.alert("Booking Failed", error.response.data.message);
+            } else if (error.message) {
+                Alert.alert("Booking Failed", error.message);
+            } else {
+                Alert.alert("Booking Failed", "Please try again.");
+            }
+        }
+    };
+
+
+
+
 
     return (
         <SafeAreaView className="bg-[#f0f0f0] flex-1">
             <ScrollView className="px-4">
-                2
+
                 {/* Top Image */}
                 <View className="items-center mt-6">
                     <Image
-                        source={{ uri: image || 'https://via.placeholder.com/200' }}
+                        source={{ uri: shop.image || 'https://via.placeholder.com/200' }}
                         className="w-40 h-40 rounded-xl border-2 border-white"
                     />
                 </View>
 
                 {/* Name & Occupation */}
                 <View className="items-center mt-4">
-                    <Text className="text-black text-lg font-bold">{name || occupation}</Text>
-                    <Text className="text-gray-500 text-sm mt-1">{occupation}</Text>
+                    <Text className="text-black text-lg font-bold">{shop.name || shop.occupation}</Text>
+                    <Text className="text-gray-500 text-sm mt-1">{shop.occupation}</Text>
                 </View>
 
                 {/* Contact Details */}
                 <View className="mt-8 space-y-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm">📍 Address</Text>
-                        <Text className="text-black mt-1">{address || "Not available"}</Text>
+                        <Text className="text-black mt-1">{shop.address || "Not available"}</Text>
                     </View>
 
                     <View className="bg-white mt-2 p-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm">📞 Mobile</Text>
-                        <Text className="text-black mt-1">{mobilenumber || "Not available"}</Text>
+                        <Text className="text-black mt-1">{shop.mobilenumber || "Not available"}</Text>
                     </View>
                 </View>
 
@@ -77,18 +182,25 @@ export default function ShopDetails() {
                 <View className="mt-5 space-y-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm">⏱ Timings</Text>
-                        <Text className="text-black mt-1">{timein} - {timeout}</Text>
+                        <Text className="text-black mt-1">{shop.timein} - {shop.timeout}</Text>
                     </View>
 
                     {/* Slider */}
                     <View className="bg-white p-4 mt-4 rounded-xl shadow-sm">
                         <Text className="text-gray-500 text-sm mb-2">
-                            Select Time for your slot: {minutesToTime(range[0])} - {minutesToTime(range[1])}
+                            Select Time: {minutesToTime12h(range[0])} - {minutesToTime12h(range[1])}
                         </Text>
+
                         <MultiSlider
                             values={range}
                             sliderLength={300}
-                            onValuesChange={(values) => setRange(values)}
+                            onValuesChangeFinish={(values) => {
+                                setRange(values);
+                                setSelectedTimeRange(
+                                    `${minutesToTime12h(values[0])} - ${minutesToTime12h(values[1])}`
+                                );
+                            }}
+
                             min={startMinutes}
                             max={endMinutes}
                             step={5}
@@ -96,25 +208,28 @@ export default function ShopDetails() {
                             unselectedStyle={{ backgroundColor: "#808080" }}
                             markerStyle={{ backgroundColor: "#00BFFF" }}
                         />
-                        {/* Time Labels */}
-                        <View className="flex-row justify-between mt-2">
-                            {timeMarks.map((t, i) => (
-                                <Text key={i} className="text-gray-500 text-xs">{t}</Text>
-                            ))}
-                        </View>
+
+
                     </View>
                 </View>
 
-                <View className="bg-white mt-2 p-4 rounded-xl shadow-sm">
-                    <Text className="text-gray-500 text-sm">Sloted booked</Text>
-                    <Text className="text-black mt-1">  </Text>
+                <View className="mt-5 bg-white p-4 rounded-xl shadow-sm items-center">
+                    <Text className="text-gray-500 text-sm">💰 Price/Min</Text>
+                    <Text className="text-black mt-1 font-bold">₹{shop.price || "N/A"}</Text>
                 </View>
 
+                {/* BOOK NOW as Pressable */}
+                <Pressable
+                    onPress={handleBooking}
+                    className="mt-5 bg-blue-500 p-4 rounded-xl shadow-sm items-center active:opacity-70"
+                >
+                    <Text className="text-white-500 text-sm">BOOK NOW</Text>
+                    <Text className="text-black mt-1 font-bold">₹{a || "N/A"}</Text>
+                </Pressable>
+
+
                 {/* Price */}
-                <View className="mt-5 bg-white p-4 rounded-xl shadow-sm items-center">
-                    <Text className="text-gray-500 text-sm">💰 Price</Text>
-                    <Text className="text-black mt-1 font-bold">₹{price || "N/A"}</Text>
-                </View>
+
 
                 {/* Extra Description */}
                 <View className="mt-6 bg-white p-4 rounded-xl shadow-sm">
@@ -123,6 +238,50 @@ export default function ShopDetails() {
                         This is the shop details page. You can add reviews, offers, or a description here.
                     </Text>
                 </View>
+                <View className="mt-6 bg-white rounded-xl shadow-sm overflow-hidden">
+                    <Text className="text-gray-500 text-sm px-4 pt-4">📍 Location & Route</Text>
+
+                    <View className="h-64 mt-2">
+                        <MapView
+                            className="flex-1"
+                            style={{ flex: 1 }}
+                            initialRegion={{
+                                latitude: (userLocation.latitude + shop.latitude) / 2,
+                                longitude: (userLocation.longitude + shop.longitude) / 2,
+                                latitudeDelta: Math.abs(userLocation.latitude - shop.latitude) + 0.05,
+                                longitudeDelta: Math.abs(userLocation.longitude - shop.longitude) + 0.05,
+                            }}
+                        >
+                            {/* User Marker */}
+                            <Marker coordinate={userLocation} title="You" pinColor="blue" />
+
+                            {/* Shop Marker */}
+                            <Marker
+                                coordinate={{ latitude: shop.latitude, longitude: shop.longitude }}
+
+                                title={shop.name || "Shop"}
+                                pinColor="red"
+                            />
+
+                            {/* Route */}
+                            <MapViewDirections
+                                origin={userLocation}
+                                destination={{ latitude: shop.latitude, longitude: shop.longitude }}
+                                apikey={GOOGLE_MAPS_APIKEY}
+                                strokeWidth={4}
+                                strokeColor="hotpink"
+                                onReady={(result) => {
+                                    console.log(`Distance: ${result.distance} km`);
+                                    console.log(`Duration: ${result.duration} min`);
+                                }}
+                            />
+                        </MapView>
+                    </View>
+                </View>
+
+
+
+
             </ScrollView>
         </SafeAreaView>
     );

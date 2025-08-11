@@ -73,7 +73,7 @@ router.post('/signin', async (req, res) => {
 
     const token = jwt.sign(
         { userId: user.id },
-        JWT_SECRET, { expiresIn: '6h' }
+        JWT_SECRET
     );
 
     return res.json({ token });
@@ -81,7 +81,7 @@ router.post('/signin', async (req, res) => {
 
 router.post('/adminshop', verifyAdminToken, async (req, res) => {
     const adminId = Number(req.user?.id);
-    const timeFormatRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
 
     const {
         image,
@@ -98,12 +98,7 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
 
     try {
         // ✅ Validate before DB insert
-        if (!timein || !timeFormatRegex.test(timein)) {
-            return res.status(400).json({ error: "Invalid or missing timein. Use HH:MM (24-hour)" });
-        }
-        if (!timeout || !timeFormatRegex.test(timeout)) {
-            return res.status(400).json({ error: "Invalid or missing timeout. Use HH:MM (24-hour)" });
-        }
+
 
         const adminExists = await prisma.admin.findUnique({
             where: { id: adminId }

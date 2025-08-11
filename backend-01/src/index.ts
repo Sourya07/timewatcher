@@ -1,6 +1,7 @@
 import express from 'express';
 import adminroutes from './routes/admin'
 import userroutes from './routes/user'
+import bookroutes from './routes/booking'
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,6 +11,7 @@ app.use(express.json());
 
 app.use('/api/v1/admin', adminroutes)
 app.use('/api/v1/user', userroutes)
+app.use('/api/v1/booking', bookroutes)
 
 app.get('/', (req, res) => {
     res.send('Hello from Express + TypeScript!');

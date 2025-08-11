@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "public"."Booking" ALTER COLUMN "startTime" SET DATA TYPE TEXT,
+ALTER COLUMN "endTime" SET DATA TYPE TEXT;

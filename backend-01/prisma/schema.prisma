@@ -66,8 +66,10 @@ model Booking {
   shopId    Int
   userId    Int
   duration  Int // in minutes
-  startTime DateTime
-  endTime   DateTime
+  price     Int
+  booked    Boolean
+  startTime String
+  endTime   String
   createdAt DateTime @default(now())
 
   shop AdminShop @relation(fields: [shopId], references: [id])

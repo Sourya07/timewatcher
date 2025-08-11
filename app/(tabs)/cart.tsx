@@ -1,35 +1,31 @@
+// app/index.tsx (or your main page)
 import { View, Text, TextInput, ScrollView, Image, TouchableOpacity, ActivityIndicator, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import { router } from 'expo-router';
+import { useShopStore } from '@/Store/shopstore';
 
-// Interface for a shop
-interface Shop {
-    name?: string;
-    image?: string;
-    address: string;
-    mobilenumber: string;
-    occupation: string;
-    timein: number;
-    timeout: number;
-    price: number;
-}
 
 export default function App() {
-    const [shops, setShops] = useState<Shop[]>([]);
-    const [filtershops, setfiltershops] = useState<Shop[]>([]);
+    const { shops, setShops } = useShopStore();
+    const [filtershops, setfiltershops] = useState(shops);
     const [loading, setLoading] = useState<boolean>(true);
     const [search, setSearch] = useState<string>("");
-
+    console.log("j")
+    console.log(shops)
     useEffect(() => {
-        fetchShops();
+        if (shops.length === 0) {
+            fetchShops();
+        } else {
+            setLoading(false);
+        }
     }, []);
 
     const fetchShops = async () => {
         try {
-            const res = await axios.get<{ shops: Shop[] }>("http://localhost:3000/api/v1/user/adminshops");
+            const res = await axios.get<{ shops: typeof shops }>("http://localhost:3000/api/v1/user/adminshops");
             setShops(res.data.shops || []);
             setfiltershops(res.data.shops || []);
         } catch (error) {
@@ -72,7 +68,6 @@ export default function App() {
                 </TouchableOpacity>
             </View>
 
-            {/* Loading Spinner */}
             {loading ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator size="large" color="green" />
@@ -82,22 +77,9 @@ export default function App() {
                     {filtershops.map((item, index) => (
                         <Pressable
                             key={index}
-                            onPress={() => {
-                                router.push({
-                                    pathname: `/shops/${index}` as any, // dynamic route
-                                    params: {
-                                        name: item.name || "",
-                                        image: item.image || "",
-                                        address: item.address,
-                                        mobilenumber: item.mobilenumber,
-                                        occupation: item.occupation,
-                                        timein: item.timein.toString(),
-                                        timeout: item.timeout.toString(),
-                                        price: item.price.toString(),
-                                    },
-                                });
-                            }}
+                            onPress={() => router.push(`/shops/${item.id}`
 
+                            )} // just send index
                             className="flex-row bg-white border border-gray-100 rounded-xl shadow-sm p-3"
                         >
                             <Image
