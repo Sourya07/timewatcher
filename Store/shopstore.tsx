@@ -8,7 +8,7 @@ export interface Shop {
     address: string;
     mobilenumber: string;
     occupation: string;
-    latitude:  number;
+    latitude: number;
     longitude: number;
     timein: number;
     timeout: number;
@@ -23,7 +23,10 @@ interface ShopState {
 
 export const useShopStore = create<ShopState>((set, get) => ({
     shops: [],
-    setShops: (shops) => set({ shops }),
+    setShops: (shops) => {
+        console.log("Setting shops:", shops);
+        set({ shops });
+    },
     getShopById: (id) => get().shops.find((shop) => shop.id === Number(id)),
 
 }));

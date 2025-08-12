@@ -8,13 +8,13 @@ import MapViewDirections from "react-native-maps-directions";
 import { useRouter } from 'expo-router';
 import axios from "axios";
 import * as SecureStore from 'expo-secure-store';
-import { GOOGLE_MAPS_APIKEY } from '@env'
 
+const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw"
 
 export default function ShopDetails() {
 
     const router = useRouter(); // ✅ hook for navigation
-    const userLocation = { latitude: 37.78, longitude: -122.406417 };
+    const userLocation = { latitude: 27.1027378242211, longitude: 83.2817002769377 };
 
     const { id } = useLocalSearchParams<{ id: string }>(); // param is "id" not index
     const getShopById = useShopStore((state) => state.getShopById);

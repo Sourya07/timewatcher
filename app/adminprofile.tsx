@@ -199,7 +199,7 @@ export default function AdminShopForm({ adminId }: { adminId: number }) {
                                     placeholder="Hour (1-12)"
                                     value={form.timeinHour}
                                     onChangeText={(text) => handleChange('timeinHour', text)}
-                                    keyboardType="numeric"
+
                                 />
                             </View>
 
@@ -238,7 +238,7 @@ export default function AdminShopForm({ adminId }: { adminId: number }) {
                                     placeholder="Hour (1-12)"
                                     value={form.timeoutHour}
                                     onChangeText={(text) => handleChange('timeoutHour', text)}
-                                    keyboardType="numeric"
+
                                 />
                             </View>
 
