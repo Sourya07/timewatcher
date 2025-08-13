@@ -7,6 +7,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; // ✅ Settings icon
 
 
+
+
+
 export default function ProfileScreen() {
     interface userdata {
         id: number,
@@ -30,7 +33,9 @@ export default function ProfileScreen() {
                 }
 
                 const res = await axios.get('https://timewatcher.onrender.com/api/v1/user/', {
-                    headers: { Authorization: `Bearer ${token}` }
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
                 });
                 setUserData(res.data);
             } catch (error: any) {
@@ -81,7 +86,9 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Edit Profile Button */}
-                <Pressable className="bg-indigo-500 mx-4 mt-6 py-2 rounded-full items-center">
+                <Pressable className="bg-indigo-500 mx-4 mt-6 py-2 rounded-full items-center" onPress={() => {
+                    router.push('../userflow/userdetails')
+                }}>
                     <Text className="text-white font-semibold">Edit Profile</Text>
                 </Pressable>
 

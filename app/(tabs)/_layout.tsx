@@ -36,7 +36,7 @@ export default function _layout() {
                 borderBottomLeftRadius: 50,
                 borderBottomRightRadius: 50,
                 marginHorizontal: 20,
-                height: 80,
+                height: 70,
                 position: 'absolute',
                 bottom: 40,
                 backgroundColor: 'white',
@@ -54,13 +54,13 @@ export default function _layout() {
                     tabBarIcon: ({ focused }) => <TabBarIcon title="Home" icon={images.home} focused={focused} />
                 }}
             />
-            <Tabs.Screen
+            {/* <Tabs.Screen
                 name='search'
                 options={{
                     title: 'Search',
                     tabBarIcon: ({ focused }) => <TabBarIcon title="Search" icon={images.search} focused={focused} />
                 }}
-            />
+            /> */}
             <Tabs.Screen
                 name='cart'
                 options={{

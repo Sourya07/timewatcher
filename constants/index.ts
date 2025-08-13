@@ -43,24 +43,28 @@ import courier from "@/assets/images/courier.png";
 export const offers = [
     {
         id: 1,
+        name: "doctor",
         title: "Doctor Reserve Time",
         image: doctor,
         color: "#D33B0D",
     },
     {
         id: 2,
+        name: "barber",
         title: "barber reserved",
         image: barber,
         color: "#DF5A0C",
     },
     {
         id: 3,
+        name: "courier",
         title: "courier",
         image: courier,
         color: "#084137",
     },
     {
         id: 4,
+        name: "advocate",
         title: "Advocate",
         image: buritto,
         color: "#EB920C",

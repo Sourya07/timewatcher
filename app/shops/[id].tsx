@@ -104,7 +104,7 @@ export default function ShopDetails() {
                 return;
             }
             // 1️⃣ Send POST request
-            await axios.post(`http:localhost:3000/api/v1/booking/`, {
+            await axios.post("https://timewatcher.onrender.com/api/v1/booking", {
                 shopId: Number(id),
                 duration: timeDifference,
                 price: a,
@@ -192,20 +192,24 @@ export default function ShopDetails() {
                         <MultiSlider
                             values={range}
                             sliderLength={300}
-                            onValuesChangeFinish={(values) => {
-                                setRange(values);
+                            onValuesChange={(values) => {
+                                setRange(values); // update while dragging
                                 setSelectedTimeRange(
                                     `${minutesToTime12h(values[0])} - ${minutesToTime12h(values[1])}`
                                 );
                             }}
-
+                            onValuesChangeFinish={(values) => {
+                                // optional: for final logic after sliding stops
+                                setRange(values);
+                            }}
                             min={startMinutes}
                             max={endMinutes}
-                            step={5}
+                            step={1}
                             selectedStyle={{ backgroundColor: "#00BFFF" }}
                             unselectedStyle={{ backgroundColor: "#808080" }}
                             markerStyle={{ backgroundColor: "#00BFFF" }}
                         />
+
 
 
                     </View>

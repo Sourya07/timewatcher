@@ -29,7 +29,12 @@
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE"
       ],
-      "package": "com.anonymous.myapp"
+      "package": "com.anonymous.myapp",
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
