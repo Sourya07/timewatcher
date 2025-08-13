@@ -2,7 +2,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlatList, Image, Pressable, Text, TouchableOpacity, View } from "react-native";
 import { Fragment, useEffect } from "react";
 import cn from 'clsx';
-import { router } from "expo-router";
+import { router, SplashScreen } from "expo-router";
 import { useShopStore } from '@/Store/shopstore';
 
 // import CartButton from "@/components/CartButton";
@@ -13,11 +13,15 @@ import { images, offers } from "@/constants";
 export default function Index() {
   const { shops, fetchShops, loading } = useShopStore();
 
+
+
+
+
   useEffect(() => {
     if (shops.length === 0) {
       fetchShops();
     }
-  }, []);
+  }, [shops]);
 
 
   return (

@@ -148,100 +148,14 @@ export default function ShopDetails() {
     return (
         <SafeAreaView className="bg-[#f0f0f0] flex-1">
             <ScrollView className="px-4">
-
-                {/* Top Image */}
-                <View className="items-center mt-6">
-                    <Image
-                        source={{ uri: shop.image || 'https://via.placeholder.com/200' }}
-                        className="w-40 h-40 rounded-xl border-2 border-white"
-                    />
-                </View>
-
-                {/* Name & Occupation */}
                 <View className="items-center mt-4">
                     <Text className="text-black text-lg font-bold">{shop.name || shop.occupation}</Text>
                     <Text className="text-gray-500 text-sm mt-1">{shop.occupation}</Text>
                 </View>
 
-                {/* Contact Details */}
-                <View className="mt-8 space-y-4">
-                    <View className="bg-white p-4 rounded-xl shadow-sm">
-                        <Text className="text-gray-500 text-sm">📍 Address</Text>
-                        <Text className="text-black mt-1">{shop.address || "Not available"}</Text>
-                    </View>
-
-                    <View className="bg-white mt-2 p-4 rounded-xl shadow-sm">
-                        <Text className="text-gray-500 text-sm">📞 Mobile</Text>
-                        <Text className="text-black mt-1">{shop.mobilenumber || "Not available"}</Text>
-                    </View>
-                </View>
-
-                {/* Shop Timings */}
-                <View className="mt-5 space-y-4">
-                    <View className="bg-white p-4 rounded-xl shadow-sm">
-                        <Text className="text-gray-500 text-sm">⏱ Timings</Text>
-                        <Text className="text-black mt-1">{shop.timein} - {shop.timeout}</Text>
-                    </View>
-
-                    {/* Slider */}
-                    <View className="bg-white p-4 mt-4 rounded-xl shadow-sm">
-                        <Text className="text-gray-500 text-sm mb-2">
-                            Select Time: {minutesToTime12h(range[0])} - {minutesToTime12h(range[1])}
-                        </Text>
-
-                        <MultiSlider
-                            values={range}
-                            sliderLength={300}
-                            onValuesChange={(values) => {
-                                setRange(values); // update while dragging
-                                setSelectedTimeRange(
-                                    `${minutesToTime12h(values[0])} - ${minutesToTime12h(values[1])}`
-                                );
-                            }}
-                            onValuesChangeFinish={(values) => {
-                                // optional: for final logic after sliding stops
-                                setRange(values);
-                            }}
-                            min={startMinutes}
-                            max={endMinutes}
-                            step={1}
-                            selectedStyle={{ backgroundColor: "#00BFFF" }}
-                            unselectedStyle={{ backgroundColor: "#808080" }}
-                            markerStyle={{ backgroundColor: "#00BFFF" }}
-                        />
-
-
-
-                    </View>
-                </View>
-
-                <View className="mt-5 bg-white p-4 rounded-xl shadow-sm items-center">
-                    <Text className="text-gray-500 text-sm">💰 Price/Min</Text>
-                    <Text className="text-black mt-1 font-bold">₹{shop.price || "N/A"}</Text>
-                </View>
-
-                {/* BOOK NOW as Pressable */}
-                <Pressable
-                    onPress={handleBooking}
-                    className="mt-5 bg-blue-500 p-4 rounded-xl shadow-sm items-center active:opacity-70"
-                >
-                    <Text className="text-white-500 text-sm">BOOK NOW</Text>
-                    <Text className="text-black mt-1 font-bold">₹{a || "N/A"}</Text>
-                </Pressable>
-
-
-                {/* Price */}
-
-
-                {/* Extra Description */}
-                <View className="mt-6 bg-white p-4 rounded-xl shadow-sm">
-                    <Text className="text-gray-500 text-sm">About</Text>
-                    <Text className="text-gray-700 mt-1">
-                        This is the shop details page. You can add reviews, offers, or a description here.
-                    </Text>
-                </View>
+                {/* Location & Route at Top */}
                 <View className="mt-6 bg-white rounded-xl shadow-sm overflow-hidden">
-                    <Text className="text-gray-500 text-sm px-4 pt-4">📍 Location & Route</Text>
+
 
                     <View className="h-64 mt-2">
                         <MapView
@@ -257,13 +171,19 @@ export default function ShopDetails() {
                             {/* User Marker */}
                             <Marker coordinate={userLocation} title="You" pinColor="blue" />
 
-                            {/* Shop Marker */}
-                            <Marker
-                                coordinate={{ latitude: shop.latitude, longitude: shop.longitude }}
-
-                                title={shop.name || "Shop"}
-                                pinColor="red"
-                            />
+                            {/* Shop Marker with Image */}
+                            <Marker coordinate={{ latitude: shop.latitude, longitude: shop.longitude }} title={shop.name || "Shop"}>
+                                <Image
+                                    source={{ uri: shop.image || 'https://via.placeholder.com/200' }}
+                                    style={{
+                                        width: 60,
+                                        height: 60,
+                                        borderRadius: 10,
+                                        borderWidth: 2,
+                                        borderColor: "white",
+                                    }}
+                                />
+                            </Marker>
 
                             {/* Route */}
                             <MapViewDirections
@@ -281,9 +201,74 @@ export default function ShopDetails() {
                     </View>
                 </View>
 
+                {/* Name & Occupation */}
 
+                {/* Contact Details */}
+                <View className="mt-8 space-y-4">
+                    <View className="bg-white p-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm">📍 Address</Text>
+                        <Text className="text-black mt-1">{shop.address || "Not available"}</Text>
+                    </View>
 
+                    <View className="bg-white mt-2 p-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm">📞 Mobile</Text>
+                        <Text className="text-black mt-1">{shop.mobilenumber || "Not available"}</Text>
+                    </View>
+                </View>
 
+                {/* Timings */}
+                <View className="mt-5 space-y-4">
+                    <View className="bg-white p-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm">⏱ Timings</Text>
+                        <Text className="text-black mt-1">{shop.timein} - {shop.timeout}</Text>
+                    </View>
+
+                    {/* Slider */}
+                    <View className="bg-white p-4 mt-4 rounded-xl shadow-sm">
+                        <Text className="text-gray-500 text-sm mb-2">
+                            Select Time: {minutesToTime12h(range[0])} - {minutesToTime12h(range[1])}
+                        </Text>
+                        <MultiSlider
+                            values={range}
+                            sliderLength={300}
+                            onValuesChange={(values) => {
+                                setRange(values);
+                                setSelectedTimeRange(
+                                    `${minutesToTime12h(values[0])} - ${minutesToTime12h(values[1])}`
+                                );
+                            }}
+                            min={startMinutes}
+                            max={endMinutes}
+                            step={1}
+                            selectedStyle={{ backgroundColor: "#00BFFF" }}
+                            unselectedStyle={{ backgroundColor: "#808080" }}
+                            markerStyle={{ backgroundColor: "#00BFFF" }}
+                        />
+                    </View>
+                </View>
+
+                {/* Price */}
+                <View className="mt-5 bg-white p-4 rounded-xl shadow-sm items-center">
+                    <Text className="text-gray-500 text-sm">💰 Price/Min</Text>
+                    <Text className="text-black mt-1 font-bold">₹{shop.price || "N/A"}</Text>
+                </View>
+
+                {/* BOOK NOW */}
+                <Pressable
+                    onPress={handleBooking}
+                    className="mt-5 bg-blue-500 p-4 rounded-xl shadow-sm items-center active:opacity-70"
+                >
+                    <Text className="text-white text-sm">BOOK NOW</Text>
+                    <Text className="text-black mt-1 font-bold">₹{a || "N/A"}</Text>
+                </Pressable>
+
+                {/* About */}
+                <View className="mt-6 bg-white p-4 rounded-xl shadow-sm">
+                    <Text className="text-gray-500 text-sm">About</Text>
+                    <Text className="text-gray-700 mt-1">
+                        This is the shop details page. You can add reviews, offers, or a description here.
+                    </Text>
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
