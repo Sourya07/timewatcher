@@ -5,6 +5,7 @@ import CustomButton from '@/components/Custombutton'
 import { useState } from 'react'
 import axios from 'axios'
 
+
 const userSignup = () => {
     const [isSubmitting, setSubmitting] = useState(false)
 
@@ -25,7 +26,7 @@ const userSignup = () => {
         try {
             const response = await axios.post('https://timewatcher.onrender.com/api/v1/user/signup', form)
 
-            Alert.alert('Success', 'User signed up successfully')
+            Alert.alert('Success', 'Please verify your email')
             router.replace('/sign-in')
         } catch (error: any) {
             console.log('Signup error:', error)

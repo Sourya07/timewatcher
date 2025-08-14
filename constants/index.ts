@@ -18,7 +18,7 @@ import search from "@/assets/icons/search.png";
 import star from "@/assets/icons/star.png";
 import trash from "@/assets/icons/trash.png";
 import user from "@/assets/icons/user.png";
-
+import locationbg from "@/assets/images/locationbg.png";
 import avatar from "@/assets/images/avatar.png";
 
 import doctor from "@/assets/images/doctor.png";
@@ -116,4 +116,5 @@ export const images = {
     star,
     trash,
     user,
+    locationbg
 };

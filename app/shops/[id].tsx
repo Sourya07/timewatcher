@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, SafeAreaView, ActivityIndicator, Pressable, Alert } from 'react-native';
+import { View, Text, Image, ScrollView, SafeAreaView, ActivityIndicator, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useShopStore } from '@/Store/shopstore';
 import { useState, useMemo, useEffect, } from 'react';
@@ -8,6 +8,7 @@ import MapViewDirections from "react-native-maps-directions";
 import { useRouter } from 'expo-router';
 import axios from "axios";
 import * as SecureStore from 'expo-secure-store';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw"
 
@@ -82,7 +83,7 @@ export default function ShopDetails() {
             setTimeDifference(diffMinutes);
 
 
-        }, 1000); // 2 second delay
+        }, 200); // 2 second delay
 
         console.log(selectedTimeRange)
         setDebounceTimer(timer);
@@ -146,12 +147,30 @@ export default function ShopDetails() {
 
 
     return (
-        <SafeAreaView className="bg-[#f0f0f0] flex-1">
-            <ScrollView className="px-4">
-                <View className="items-center mt-4">
-                    <Text className="text-black text-lg font-bold">{shop.name || shop.occupation}</Text>
-                    <Text className="text-gray-500 text-sm mt-1">{shop.occupation}</Text>
+        <SafeAreaView className="bg-white flex-1">
+            <View className="bg-white px-3 py-2 flex-row items-center justify-between">
+                {/* Left - Location */}
+                <View className="flex-row items-center">
+                    <Ionicons name="location-sharp" size={22} color="#ff5a1f" />
+                    <TouchableOpacity>
+                        <Text className="ml-1 font-bold text-base text-black">
+                            {shop.address ? shop.address.split(" ").slice(0, 2).join(" ") : "Not available"}
+                        </Text>
+                        <Text className="text-xs text-gray-500">
+                            {shop.address && shop.address.split(" ").length > 2
+                                ? shop.address.split(" ").slice(2, 6).join(" ")
+                                : ""}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
+
+                {/* Right - Profile Icon */}
+                <TouchableOpacity className="bg-gray-200 p-2 rounded-full">
+                    <FontAwesome5 name="user" size={16} color="black" />
+                </TouchableOpacity>
+            </View>
+            <ScrollView className="px-3">
+
 
                 {/* Location & Route at Top */}
                 <View className="mt-6 bg-white rounded-xl shadow-sm overflow-hidden">
@@ -160,6 +179,7 @@ export default function ShopDetails() {
                     <View className="h-64 mt-2">
                         <MapView
                             className="flex-1"
+                            provider="google"
                             style={{ flex: 1 }}
                             initialRegion={{
                                 latitude: (userLocation.latitude + shop.latitude) / 2,
@@ -169,7 +189,7 @@ export default function ShopDetails() {
                             }}
                         >
                             {/* User Marker */}
-                            <Marker coordinate={userLocation} title="You" pinColor="blue" />
+                            <Marker coordinate={userLocation} title="You" pinColor="red" />
 
                             {/* Shop Marker with Image */}
                             <Marker coordinate={{ latitude: shop.latitude, longitude: shop.longitude }} title={shop.name || "Shop"}>
@@ -191,7 +211,7 @@ export default function ShopDetails() {
                                 destination={{ latitude: shop.latitude, longitude: shop.longitude }}
                                 apikey={GOOGLE_MAPS_APIKEY}
                                 strokeWidth={4}
-                                strokeColor="hotpink"
+                                strokeColor="blue"
                                 onReady={(result) => {
                                     console.log(`Distance: ${result.distance} km`);
                                     console.log(`Duration: ${result.duration} min`);
@@ -224,9 +244,9 @@ export default function ShopDetails() {
                     </View>
 
                     {/* Slider */}
-                    <View className="bg-white p-4 mt-4 rounded-xl shadow-sm">
+                    <View className="bg-white p-4 mt-4 rounded-xl shadow-sm px-5">
                         <Text className="text-gray-500 text-sm mb-2">
-                            Select Time: {minutesToTime12h(range[0])} - {minutesToTime12h(range[1])}
+                            BookTime: {minutesToTime12h(range[0])} - {minutesToTime12h(range[1])}
                         </Text>
                         <MultiSlider
                             values={range}

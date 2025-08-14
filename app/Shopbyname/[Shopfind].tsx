@@ -89,7 +89,7 @@ export default function ShopByName() {
                 <View className="px-4 py-3">
                     <Text className="text-lg font-semibold mb-3">Categories</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {["Cardiologist", "Dentist", "Pediatrician", "Dermatologist"].map((cat, idx) => (
+                        {["Doctors", "Advocate", "courier", "Dermatologist"].map((cat, idx) => (
                             <TouchableOpacity
                                 key={idx}
                                 className="mr-3 items-center"

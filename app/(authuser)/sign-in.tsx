@@ -32,7 +32,7 @@ const userSignin = () => {
 
             Alert.alert('Success', 'Signed in successfully');
             await SecureStore.setItemAsync('usertoken', token);
-            router.push('/profile')
+            router.push('../userflow/setting')
 
             // Optionally save token using AsyncStorage
             // await AsyncStorage.setItem('token', token);
@@ -75,7 +75,7 @@ const userSignin = () => {
 
             <View className="flex justify-center mt-5 flex-row gap-2">
                 <Text className="base-regular text-gray-100">Don't have an account?</Text>
-                <Link href="/sign-up" className="base-bold text-primary">
+                <Link href="./sign-up" className="base-bold text-primary">
                     Sign Up
                 </Link>
             </View>

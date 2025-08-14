@@ -32,7 +32,7 @@
       "package": "com.anonymous.myapp",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw"
+          "apiKey": ""
         }
       }
     },
