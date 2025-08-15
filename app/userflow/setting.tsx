@@ -14,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { images } from "@/constants";
 import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import axios from "axios";
 
 export default function LocationScreen() {
     const [location, setLocation] = useState("");
@@ -78,22 +80,7 @@ export default function LocationScreen() {
         }
     };
 
-    const handleSubmit = () => {
-        if (!coords || !location) {
-            Alert.alert("Missing fields", "Please enter or detect your location.");
-            return;
-        }
 
-        const payload = {
-            address: location,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-        };
-
-        console.log("Payload:", payload);
-        Alert.alert("Success", "Location submitted!");
-        router.push('../(tabs)/profile')
-    };
 
     const handleSuggestionPress = async (address: string) => {
         setLocation(address);
@@ -112,6 +99,41 @@ export default function LocationScreen() {
             }
         } catch (err) {
             Alert.alert("Error", "Failed to fetch coordinates");
+        }
+    };
+
+
+    const handleSubmit = async () => {
+        if (!coords || !location) {
+            Alert.alert("Missing fields", "Please enter or detect your location.");
+            return;
+        }
+
+        try {
+            const token = SecureStore.getItemAsync("usertoken");// get from AsyncStorage/SecureStore
+            const response = await axios.post(
+                "http://0.0.0.0:3000/api/v1/user/userdetails",
+                {
+                    image: "https://example.com/default.jpg", // or from state
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    address: location,
+                    mobilenumber: "9876543210" // or from state
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+
+            console.log("Server response:", response.data);
+            Alert.alert("Success", "Location submitted!");
+            router.push("../(tabs)/profile");
+        } catch (error) {
+            console.error("Error submitting location:", error);
+            Alert.alert("Error", "Failed to submit location.");
         }
     };
 

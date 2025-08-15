@@ -1,4 +1,9 @@
-import { View, Text, Image, ScrollView, SafeAreaView, ActivityIndicator, Pressable, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ScrollView, ActivityIndicator, Pressable, Alert, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+<SafeAreaView edges={['top']} className="bg-white flex-1">
+    {/* Header + ScrollView */}
+</SafeAreaView>
 import { useLocalSearchParams } from 'expo-router';
 import { useShopStore } from '@/Store/shopstore';
 import { useState, useMemo, useEffect, } from 'react';
@@ -179,7 +184,7 @@ export default function ShopDetails() {
                     <View className="h-64 mt-2">
                         <MapView
                             className="flex-1"
-                            provider="google"
+
                             style={{ flex: 1 }}
                             initialRegion={{
                                 latitude: (userLocation.latitude + shop.latitude) / 2,

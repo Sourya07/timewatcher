@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "my-app",
+    "name": "timeminutes",
     "slug": "my-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/avatar.png",
+    "icon": "./assets/images/logo.jpeg",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo.jpeg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -32,7 +32,7 @@
       "package": "com.anonymous.myapp",
       "config": {
         "googleMaps": {
-          "apiKey": ""
+          "apiKey": "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw"
         }
       }
     },
@@ -56,6 +56,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6a5592d3-ab06-4052-bab1-5bf4cf214b26"
+      }
     }
   }
 }

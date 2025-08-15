@@ -18,7 +18,7 @@ import search from "@/assets/icons/search.png";
 import star from "@/assets/icons/star.png";
 import trash from "@/assets/icons/trash.png";
 import user from "@/assets/icons/user.png";
-import locationbg from "@/assets/images/locationbg.png";
+import locationbg from "@/assets/images/locationbg.jpeg";
 import avatar from "@/assets/images/avatar.png";
 
 import doctor from "@/assets/images/doctor.png";
@@ -30,8 +30,8 @@ import buritto from "@/assets/images/buritto.png";
 import emptyState from "@/assets/images/empty-state.png";
 
 
-import time from "@/assets/images/time.png"
-import logo from "@/assets/images/logo.png";
+
+import logo from "@/assets/images/locationbg.jpeg";
 
 import courier from "@/assets/images/courier.png";
 
@@ -86,7 +86,7 @@ export const images = {
     emptyState,
 
 
-    time,
+
     logo,
 
 

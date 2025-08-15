@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-    SafeAreaView,
+
     View,
     Text,
     Image,
@@ -8,6 +8,7 @@ import {
     ScrollView,
     TextInput,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useShopStore, Shop } from "@/Store/shopstore";
 import { useLocalSearchParams } from "expo-router";

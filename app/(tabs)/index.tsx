@@ -79,7 +79,7 @@ export default function Index() {
               <Text className="small-bold text-primary">Timeexchange</Text>
               <TouchableOpacity
                 className="flex-center flex-row gap-x-1 mt-0.5"
-                onPress={() => router.push('/(authadmin)/adminsign-in')} // ✅ navigate on press
+                onPress={() => router.replace('/(authadmin)/adminsign-in')} // ✅ navigate on press
               >
                 <Text className="paragraph-bold text-dark-100">Seller</Text>
                 <Image source={images.arrowDown} className="size-3" resizeMode="contain" />

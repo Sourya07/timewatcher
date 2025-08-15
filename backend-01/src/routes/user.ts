@@ -261,4 +261,34 @@ router.get('/adminshops', async (req, res) => {
     }
 });
 
+
+router.post('/userdetails', verifyToken, async (req, res) => {
+    try {
+        const { image, latitude, longitude, address, mobilenumber } = req.body;
+        const UserId = Number(req.user?.id);
+
+        const userprofile = await prisma.userprofile.create({
+            data: {
+                image,
+                latitude,
+                longitude,
+                address,
+                mobilenumber,
+                UserID: UserId  // Assuming `userId` is the foreign key in your schema
+            }
+        });
+
+        res.status(201).json({
+            success: true,
+            data: userprofile
+        });
+    } catch (error) {
+        console.error("Error creating user profile:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
+    }
+});
+
 export default router;
