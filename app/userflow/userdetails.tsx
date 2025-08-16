@@ -1,27 +1,18 @@
+// MyFormScreen.tsx
 import React, { useState } from "react";
-import {
-    View,
-    Text,
-    ImageBackground,
-    Pressable,
-    TextInput,
-    Keyboard,
-    TouchableWithoutFeedback,
-    Alert,
-    ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TextInput, Image, TouchableOpacity, Alert, ScrollView } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { images } from "@/constants";
 
-export default function LocationScreen() {
-    const [location, setLocation] = useState("");
+
+const GOOGLE_API_KEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw"
+export default function MyFormScreen() {
+    const [address, setAddress] = useState("");
     const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    console.log(suggestions)
-    const GOOGLE_API_KEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw"; // Must have Places + Geocoding API
+    const [mobile, setMobile] = useState("");
+    const [image, setImage] = useState<string | null>(null);
 
-    // Detect current location
+    // Detect location and reverse geocode
     const detectLocation = async () => {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
@@ -29,21 +20,21 @@ export default function LocationScreen() {
             return;
         }
 
-        let loc = await Location.getCurrentPositionAsync({});
+        let location = await Location.getCurrentPositionAsync({});
         setCoords({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
         });
 
-        console.log(coords)
+        // Get address from Google API
         try {
             const resp = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${loc.coords.latitude},${loc.coords.longitude}&key=${GOOGLE_API_KEY}`
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.coords.latitude},${location.coords.longitude}&key=${GOOGLE_API_KEY}`
             );
             const data = await resp.json();
+            console.log(resp)
             if (data.status === "OK") {
-                setLocation(data.results[0]?.formatted_address || "");
-                setSuggestions([]);
+                setAddress(data.results[0]?.formatted_address || "");
             } else {
                 Alert.alert("Error", "Failed to get address");
             }
@@ -52,129 +43,105 @@ export default function LocationScreen() {
         }
     };
 
-    // Fetch suggestions from Google Places Autocomplete API
-    const fetchSuggestions = async (text: string) => {
-        setLocation(text);
-        if (text.length < 4) {
-            setSuggestions([]);
-            return;
-        }
-        try {
-            const resp = await fetch(
-                `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-                    text
-                )}&key=${GOOGLE_API_KEY}`
-            );
-            const data = await resp.json();
-            if (data.status === "OK") {
-                setSuggestions(data.predictions.map((p: any) => p.description));
-            } else {
-                setSuggestions([]);
-            }
-        } catch (err) {
-            console.error(err);
-            setSuggestions([]);
+
+
+    // Pick image
+    const pickImage = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 4],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
         }
     };
 
-    const handleSubmit = () => {
-        if (!coords || !location) {
-            Alert.alert("Missing fields", "Please enter or detect your location.");
+    // Submit
+    const handleSubmit = async () => {
+        if (!coords || !mobile || !image) {
+            Alert.alert("Missing fields", "Please complete all fields.");
             return;
         }
 
         const payload = {
-            address: location,
+            address,
             latitude: coords.latitude,
             longitude: coords.longitude,
+            mobile,
+            image, // send URI or base64/FormData as needed
         };
 
-        console.log("Payload:", payload);
-        Alert.alert("Success", "Location submitted!");
+        try {
+            const res = await fetch("https://your-backend.com/api/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const json = await res.json();
+            Alert.alert("Success", "Form submitted!");
+        } catch (err) {
+            Alert.alert("Error", "Failed to submit form");
+        }
     };
 
     return (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View className="flex-1">
-                {/* Full-screen background */}
-                <ImageBackground
-                    source={images.locationbg}
-                    className="absolute top-0 left-0 right-0 bottom-0"
-                    resizeMode="cover"
+        <ScrollView className="flex-1 bg-white p-5">
+            <Text className="text-lg font-bold mb-3">Fill Your Details</Text>
+
+            {/* Address + Location Button */}
+            <View className="flex-row items-center mb-3">
+                <TextInput
+                    value={address}
+                    onChangeText={setAddress}
+                    placeholder="Address"
+                    className="flex-1 border border-gray-300 rounded-lg p-3"
                 />
-
-                {/* Foreground content */}
-                <SafeAreaView className="flex-1 px-6">
-                    <ScrollView className="flex-1">
-                        {/* Top Heading */}
-                        <View className="mt-12">
-                            <Text className="text-black text-3xl font-bold">
-                                What's your location?
-                            </Text>
-                            <Text className="text-black/60 text-base mt-2">
-                                We need your location to show your nearby services
-                            </Text>
-
-                            {/* Location Input */}
-                            <TextInput
-                                value={location}
-                                onChangeText={fetchSuggestions}
-                                placeholder="Enter your location"
-                                placeholderTextColor="rgba(0,0,0,0.4)"
-                                className="mt-5 bg-white rounded-xl px-4 py-3 text-base text-black shadow-md"
-                            />
-
-                            {/* Suggestions dropdown */}
-                            {suggestions.length > 0 && (
-                                <View className="bg-white border border-gray-300 rounded-lg mt-2">
-                                    {suggestions.map((s, i) => (
-                                        <Pressable
-                                            key={i}
-                                            onPress={() => {
-                                                setLocation(s);
-                                                setSuggestions([]);
-                                            }}
-                                            className="p-3 border-b border-gray-200"
-                                        >
-                                            <Text>{s}</Text>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-
-                        {/* Buttons at bottom */}
-                        <View className="flex-1 justify-end pb-7 mt-10 gap-4">
-                            {/* Use Current Location */}
-                            <Pressable
-                                onPress={detectLocation}
-                                className="bg-black rounded-xl py-4 items-center"
-                            >
-                                <Text className="text-white text-lg font-semibold">
-                                    Use Current Location
-                                </Text>
-                            </Pressable>
-
-                            {/* Submit Location */}
-                            <Pressable
-                                onPress={handleSubmit}
-                                className="bg-transparent border border-black rounded-xl py-4 items-center"
-                            >
-                                <Text className="text-black text-lg font-semibold">
-                                    Submit
-                                </Text>
-                            </Pressable>
-
-                            {/* Coordinates info */}
-                            {coords && (
-                                <Text className="text-black text-sm mt-2">
-                                    Lat: {coords.latitude} | Lng: {coords.longitude}
-                                </Text>
-                            )}
-                        </View>
-                    </ScrollView>
-                </SafeAreaView>
+                <TouchableOpacity
+                    onPress={detectLocation}
+                    className="ml-2 bg-blue-500 p-3 rounded-lg"
+                >
+                    <Text className="text-white">📍</Text>
+                </TouchableOpacity>
             </View>
-        </TouchableWithoutFeedback>
+
+            {/* Mobile Number */}
+            <TextInput
+                value={mobile}
+                onChangeText={setMobile}
+                placeholder="Mobile Number"
+                keyboardType="phone-pad"
+                className="border border-gray-300 rounded-lg p-3 mb-3"
+            />
+
+            {/* Image Picker */}
+            <TouchableOpacity
+                onPress={pickImage}
+                className="bg-gray-200 p-4 rounded-lg items-center mb-3"
+            >
+                {image ? (
+                    <Image source={{ uri: image }} className="w-32 h-32 rounded-lg" />
+                ) : (
+                    <Text>Select Image</Text>
+                )}
+            </TouchableOpacity>
+
+            {/* Coordinates */}
+            {coords && (
+                <Text className="text-sm mb-3">
+                    Lat: {coords.latitude} | Lng: {coords.longitude}
+                </Text>
+            )}
+
+            {/* Submit Button */}
+            <TouchableOpacity
+                onPress={handleSubmit}
+                className="bg-green-500 p-4 rounded-lg"
+            >
+                <Text className="text-white text-center font-bold">Submit</Text>
+            </TouchableOpacity>
+        </ScrollView>
     );
 }

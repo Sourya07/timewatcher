@@ -52,8 +52,10 @@ export default function ShopByName() {
                     <View className="flex-row justify-between items-center">
                         <View className="flex-row items-center mb-1">
                             <TouchableOpacity>
+
                                 <AntDesign name="arrowleft" size={22} color="#111827" onPress={() => {
-                                    router.push("/")
+                                    router.back()
+
                                 }} />
 
                             </TouchableOpacity>

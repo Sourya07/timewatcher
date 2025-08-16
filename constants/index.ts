@@ -31,7 +31,7 @@ import emptyState from "@/assets/images/empty-state.png";
 
 
 
-import logo from "@/assets/images/locationbg.jpeg";
+import logo from "@/assets/images/logo.jpeg";
 
 import courier from "@/assets/images/courier.png";
 

@@ -13,14 +13,25 @@ const userSignin = () => {
         password: '',
     });
 
+
+    const isValidEmail = (email: string) => {
+        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return regex.test(email);
+    };
     const submit = async () => {
         if (!form.email || !form.password) {
             Alert.alert('Validation Error', 'Please fill all the fields');
             return;
         }
 
-        setSubmitting(true);
+        if (!isValidEmail(form.email)) {
+            Alert.alert('Validation Error', 'Please enter a valid email address');
+            return;
+        }
 
+
+
+        setSubmitting(true);
         try {
             const response = await axios.post('https://timewatcher.onrender.com/api/v1/user/signin', {
                 email: form.email,

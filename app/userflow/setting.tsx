@@ -110,15 +110,17 @@ export default function LocationScreen() {
         }
 
         try {
-            const token = SecureStore.getItemAsync("usertoken");// get from AsyncStorage/SecureStore
+            const token = await SecureStore.getItemAsync('usertoken');
+            console.log(token)
+            // get from AsyncStorage/SecureStore
             const response = await axios.post(
-                "http://0.0.0.0:3000/api/v1/user/userdetails",
+                "https://timewatcher.onrender.com/api/v1/user/userdetails",
                 {
                     image: "https://example.com/default.jpg", // or from state
                     latitude: coords.latitude,
                     longitude: coords.longitude,
                     address: location,
-                    mobilenumber: "9876543210" // or from state
+                    mobilenumber: "plz enter your mobilr no" // or from state
                 },
                 {
                     headers: {

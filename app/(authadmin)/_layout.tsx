@@ -4,9 +4,7 @@ import { images } from "@/constants";
 import { Ionicons } from '@expo/vector-icons'; // for the back icon
 
 export default function AuthLayout() {
-    const isAuthenticated = false;
 
-    if (isAuthenticated) return <Redirect href="/" />;
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -14,7 +12,7 @@ export default function AuthLayout() {
 
                 {/* Back Button */}
                 <TouchableOpacity
-                    onPress={() => router.back()}
+                    onPress={() => router.push('/')}
                     className="absolute top-14 left-4 z-20 bg-gray-50 p-2 rounded-full"
                     style={{ elevation: 4 }}
                 >

@@ -4,8 +4,6 @@ import { Fragment, useEffect } from "react";
 import cn from 'clsx';
 import { router, SplashScreen } from "expo-router";
 import { useShopStore } from '@/Store/shopstore';
-
-// import CartButton from "@/components/CartButton";
 import { images, offers } from "@/constants";
 
 
@@ -21,7 +19,7 @@ export default function Index() {
     if (shops.length === 0) {
       fetchShops();
     }
-  }, [shops]);
+  },);
 
 
   return (

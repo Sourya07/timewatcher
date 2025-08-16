@@ -18,6 +18,7 @@ model Admin {
   name         String
   email        String      @unique
   password     String
+  isVerified   Boolean     @default(false)
   adminprofile AdminShop[]
 }
 
