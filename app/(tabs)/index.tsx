@@ -19,7 +19,7 @@ export default function Index() {
     if (shops.length === 0) {
       fetchShops();
     }
-  },);
+  }, [shops.length]);
 
 
   return (
@@ -91,3 +91,4 @@ export default function Index() {
     </SafeAreaView>
   );
 }
+

@@ -21,10 +21,7 @@ const TabBarIcon = ({ focused, icon, title }: TabBarIconProps) => (
 )
 
 export default function _layout() {
-    const auth = true
-    if (!auth) {
-        return <Redirect href="/sign-in" />
-    }
+
 
     return (
         <Tabs screenOptions={{
