@@ -83,33 +83,13 @@ router.post('/signup', async (req, res) => {
             { expiresIn: '1d' }
         );
 
-        // const verificationLink = `http://localhost:3000/api/v1/user/verify-email?token=${verificationToken}`;
+        // Email verification disabled until SendGrid is configured in prod
+        // const verificationLink = `https://timewatcher.onrender.com/api/v1/user/verify-email?token=${verificationToken}`;
+        // await sgMail.send({ to: email, from: '...', subject: 'Verify ...', html: `...` });
 
-        // Send verification email
-        // await transporter.sendMail({
-        //     from: `"MyApp" <baron88@ethereal.email>`,
-        //     to: email,
-        //     subject: 'Verify your email',
-        //     html: `<h2>Welcome, ${name}!</h2>
-        //            <p>Click below to verify your email:</p>
-        //            <a href="${verificationLink}">Verify Email</a>`
-        // });
-
-        // return res.status(201).json({ message: 'User created. Please check your email to verify your account.' });
-        const verificationLink = `https://timewatcher.onrender.com/api/v1/user/verify-email?token=${verificationToken}`;
-
-        await sgMail.send({
-            to: email, // recipient
-            from: "souryavardhan.23b1531158@abes.ac.in", // must be verified in SendGrid
-            subject: "Verify your email",
-            html: `
-                <h2>Welcome, ${name}!</h2>
-                <p>Click below to verify your email:</p>
-                <a href="${verificationLink}">Verify Email</a>
-            `,
+        return res.status(201).json({
+            message: 'Account created successfully! You can now sign in.',
         });
-
-        return res.status(201).json({ message: 'User created. Please check your email to verify your account.' });
 
     } catch (error) {
         console.error('Signup error:', error);
@@ -151,27 +131,31 @@ router.get('/verify-email', async (req, res) => {
 
 // Sign In
 router.post('/signin', async (req, res) => {
-    const result = signinSchema.safeParse(req.body);
-    if (!result.success) {
-        return res.status(400).json({ error: result.error.flatten().fieldErrors });
+    try {
+        const result = signinSchema.safeParse(req.body);
+        if (!result.success) {
+            return res.status(400).json({ error: result.error.flatten().fieldErrors });
+        }
+
+        const { email, password } = result.data;
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+
+        // if (!user.isVerified) {
+        //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
+        // }
+
+        const isValid = await bcrypt.compare(password, user!.password);
+        if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });
+
+        const token = jwt.sign({ userId: user!.id }, JWT_SECRET);
+
+        return res.json({ token });
+    } catch (error) {
+        console.error('Signin error:', error);
+        return res.status(500).json({ error: 'Server error during signin' });
     }
-
-    const { email, password } = result.data;
-
-
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
-    if (!user.isVerified) {
-        return res.status(403).json({ error: 'Please verify your email before logging in.' });
-    }
-
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });
-
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-
-    return res.json({ token });
 });
 
 router.post("/", verifyToken, async (req, res) => {
@@ -267,14 +251,24 @@ router.post('/userdetails', verifyToken, async (req, res) => {
         const { image, latitude, longitude, address, mobilenumber } = req.body;
         const UserId = Number(req.user?.id);
 
-        const userprofile = await prisma.userprofile.create({
-            data: {
+        const userprofile = await prisma.userprofile.upsert({
+            where: {
+                UserID: UserId
+            },
+            update: {
+                image,
+                latitude,
+                longitude,
+                address,
+                mobilenumber
+            },
+            create: {
                 image,
                 latitude,
                 longitude,
                 address,
                 mobilenumber,
-                UserID: UserId  // Assuming `userId` is the foreign key in your schema
+                UserID: UserId
             }
         });
 

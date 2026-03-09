@@ -1,97 +1,96 @@
-import { View, Text, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import Custominput from '@/components/Custominput';
 import CustomButton from '@/components/Custombutton';
 import { useState } from 'react';
-import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { userSignin } from '@/constants/userApi';
+import { Ionicons } from '@expo/vector-icons';
 
-const userSignin = () => {
+const UserSignInScreen = () => {
     const [isSubmitting, setSubmitting] = useState(false);
-    const [form, setForm] = useState({
-        email: '',
-        password: '',
-    });
+    const [showPass, setShowPass] = useState(false);
+    const [form, setForm] = useState({ email: '', password: '' });
 
+    const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    const isValidEmail = (email: string) => {
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return regex.test(email);
-    };
     const submit = async () => {
         if (!form.email || !form.password) {
             Alert.alert('Validation Error', 'Please fill all the fields');
             return;
         }
-
         if (!isValidEmail(form.email)) {
             Alert.alert('Validation Error', 'Please enter a valid email address');
             return;
         }
-
-
-
         setSubmitting(true);
         try {
-            const response = await axios.post('https://timewatcher.onrender.com/api/v1/user/signin', {
-                email: form.email,
-                password: form.password,
-            });
-
-            const { token } = response.data;
-            console.log(response.data)
-
-            Alert.alert('Success', 'Signed in successfully');
-            await SecureStore.setItemAsync('usertoken', token);
-            router.push('../userflow/setting')
-
-            // Optionally save token using AsyncStorage
-            // await AsyncStorage.setItem('token', token);
-
-            // redirect to homepage or dashboard
+            await userSignin(form.email, form.password);
+            router.push('../userflow/setting');
         } catch (error: any) {
-            console.error('Sign in error:', error);
-            const message = error.response?.data?.error || error.message || 'Something went wrong';
-            Alert.alert('Sign in Failed', message);
+            Alert.alert('Sign in Failed', error.message);
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <View className="gap-10 bg-white rounded p-5 mt-5">
+        <View>
+            <Text style={styles.title}>Welcome back 👋</Text>
+            <Text style={styles.subtitle}>Sign in to continue</Text>
 
-            <Custominput
-                placeholder="Enter your email"
-                value={form.email}
-                onChangeText={(text) => setForm({ ...form, email: text })}
-                label="Email"
-                keyboardType="email-address"
-            />
+            <View style={styles.form}>
+                <Custominput
+                    placeholder="you@example.com"
+                    value={form.email}
+                    onChangeText={(text) => setForm({ ...form, email: text })}
+                    label="Email"
+                    keyboardType="email-address"
+                />
+                <View style={{ marginTop: 20 }}>
+                    <Custominput
+                        placeholder="••••••••"
+                        value={form.password}
+                        onChangeText={(text) => setForm({ ...form, password: text })}
+                        label="Password"
+                        secureTextEntry={!showPass}
+                        rightIcon={
+                            <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                                <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        }
+                    />
+                </View>
 
-            <Custominput
-                placeholder="Enter your password"
-                value={form.password}
-                onChangeText={(text) => setForm({ ...form, password: text })}
-                label="Password"
-                keyboardType="default"
-                secureTextEntry={true}
-            />
+                <TouchableOpacity style={styles.forgotBtn}>
+                    <Text style={styles.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
 
-            <CustomButton
-                title={isSubmitting ? 'Signing in...' : 'Sign In'}
-                onPress={submit}
-                isLoading={isSubmitting}
-            />
+                <View style={{ marginTop: 28 }}>
+                    <CustomButton
+                        title={isSubmitting ? 'Signing in…' : 'Sign In'}
+                        onPress={submit}
+                        isLoading={isSubmitting}
+                    />
+                </View>
+            </View>
 
-            <View className="flex justify-center mt-5 flex-row gap-2">
-                <Text className="base-regular text-gray-100">Don't have an account?</Text>
-                <Link href="./sign-up" className="base-bold text-primary">
-                    Sign Up
-                </Link>
+            <View style={styles.footer}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Link href="./sign-up" style={styles.footerLink}>Sign Up</Link>
             </View>
         </View>
     );
 };
 
-export default userSignin;
+const styles = StyleSheet.create({
+    title: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
+    subtitle: { fontSize: 15, color: '#6B7280', marginTop: 6, marginBottom: 32 },
+    form: { gap: 0 },
+    forgotBtn: { alignSelf: 'flex-end', marginTop: 12 },
+    forgotText: { color: '#FE8C00', fontSize: 13, fontWeight: '600' },
+    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 36 },
+    footerText: { color: '#6B7280', fontSize: 14 },
+    footerLink: { color: '#FE8C00', fontSize: 14, fontWeight: '700' },
+});
+
+export default UserSignInScreen;

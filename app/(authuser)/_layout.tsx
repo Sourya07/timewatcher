@@ -1,54 +1,117 @@
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Dimensions, Image, Pressable } from 'react-native';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Dimensions, StyleSheet, TouchableOpacity } from 'react-native';
 import { Slot, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { images } from "@/constants";
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { height } = Dimensions.get('screen');
 
 export default function AuthLayout() {
-
     const handleBack = () => {
         if (router.canGoBack()) {
             router.back();
         } else {
-            router.replace("/"); // fallback route
+            router.replace("/");
         }
     };
 
     return (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView className="bg-white h-full" keyboardShouldPersistTaps="handled">
-                {/* Back Button */}
-                <Pressable
-                    onPress={handleBack}
-                    style={{
-                        position: 'absolute',
-                        top: 50,
-                        left: 20,
-                        zIndex: 20,
-                        backgroundColor: 'rgba(255,255,255,0.8)',
-                        borderRadius: 50,
-                        padding: 8,
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 3,
-                        elevation: 2
-                    }}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView style={{ flex: 1, backgroundColor: '#0F0F0F' }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {/* Hero Gradient Header */}
+                <LinearGradient
+                    colors={['#FF8C00', '#FF6B00', '#FF4500']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.header, { height: height * 0.35 }]}
                 >
-                    <Ionicons name="arrow-back" size={24} color="#333" />
-                </Pressable>
+                    {/* Back Button */}
+                    <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.8}>
+                        <Ionicons name="arrow-back" size={20} color="white" />
+                    </TouchableOpacity>
 
-                <View
-                    className="w-full relative"
-                    style={{ height: Dimensions.get('screen').height / 2.25 }}
-                >
-                    <Image
-                        source={images.logo}
-                        className="self-center size-48 absolute -bottom-16 z-10"
-                    />
+                    {/* Decorative circles */}
+                    <View style={styles.circle1} />
+                    <View style={styles.circle2} />
+
+                    {/* Brand */}
+                    <View style={styles.brand}>
+                        <Text style={styles.brandIcon}>⏱</Text>
+                        <Text style={styles.brandName}>TimeWatcher</Text>
+                        <Text style={styles.brandTagline}>Book your time, your way</Text>
+                    </View>
+                </LinearGradient>
+
+                {/* Card */}
+                <View style={styles.card}>
+                    <Slot />
                 </View>
-
-                <Slot />
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
+
+const styles = StyleSheet.create({
+    header: {
+        justifyContent: 'flex-end',
+        paddingBottom: 40,
+        paddingHorizontal: 24,
+        overflow: 'hidden',
+    },
+    backBtn: {
+        position: 'absolute',
+        top: 52,
+        left: 20,
+        zIndex: 20,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 50,
+        padding: 10,
+    },
+    circle1: {
+        position: 'absolute',
+        width: 220,
+        height: 220,
+        borderRadius: 110,
+        backgroundColor: 'rgba(255,255,255,0.07)',
+        top: -60,
+        right: -50,
+    },
+    circle2: {
+        position: 'absolute',
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        bottom: 20,
+        right: 40,
+    },
+    brand: {
+        alignItems: 'flex-start',
+    },
+    brandIcon: {
+        fontSize: 36,
+        marginBottom: 6,
+    },
+    brandName: {
+        color: 'white',
+        fontSize: 30,
+        fontWeight: '800',
+        letterSpacing: -0.5,
+    },
+    brandTagline: {
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: 14,
+        marginTop: 4,
+        letterSpacing: 0.2,
+    },
+    card: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        marginTop: -24,
+        paddingHorizontal: 24,
+        paddingTop: 32,
+        paddingBottom: 60,
+        minHeight: height * 0.7,
+    },
+});

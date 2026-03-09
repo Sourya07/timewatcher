@@ -1,25 +1,31 @@
-import { View, Text, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import Custominput from '@/components/Custominput';
 import CustomButton from '@/components/Custombutton';
 import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+import apiClient from '@/constants/axiosInstance';
+import { Ionicons } from '@expo/vector-icons';
 
 const Signin = () => {
     const [isSubmitting, setSubmitting] = useState(false);
-    const [form, setForm] = useState({
-        email: '',
-        password: '',
-    });
+    const [showPass, setShowPass] = useState(false);
+    const [form, setForm] = useState({ email: '', password: '' });
 
-    // ✅ Check token on mount
     useEffect(() => {
         const checkToken = async () => {
-            const token = await SecureStore.getItemAsync('token');
-            if (token) {
-                // Redirect if already signed in
-                router.replace('/adminprofile');
+            const token = await SecureStore.getItemAsync('admintoken');
+            if (!token) return; // No token → stay on sign-in
+
+            // Validate the token is still live (admin still exists in DB)
+            try {
+                await apiClient.get('/api/v1/admin/me');
+                // Token is valid → go to dashboard
+                router.replace('/adminfolder/');
+            } catch {
+                // Token is stale (admin deleted, expired, etc.) → clear it
+                await SecureStore.deleteItemAsync('admintoken');
+                await SecureStore.deleteItemAsync('token'); // legacy cleanup
             }
         };
         checkToken();
@@ -30,25 +36,15 @@ const Signin = () => {
             Alert.alert('Validation Error', 'Please fill all the fields');
             return;
         }
-
         setSubmitting(true);
-
         try {
-            const response = await axios.post('https://timewatcher.onrender.com/api/v1/admin/signin', {
-                email: form.email,
-                password: form.password,
-            });
-
+            const response = await apiClient.post('/api/v1/admin/signin', form);
             const { token } = response.data;
-
-            Alert.alert('Success', 'Signed in successfully');
-
-            await SecureStore.setItemAsync('token', token);
-
-            router.replace('/adminprofile'); // ✅ Use replace so back button won't go back to signin
-
+            // Clear any legacy 'token' key that may still contain a stale admin token
+            await SecureStore.deleteItemAsync('token');
+            await SecureStore.setItemAsync('admintoken', token);
+            router.replace('/adminfolder/');
         } catch (error: any) {
-            console.error('Sign in error:', error);
             const message = error.response?.data?.error || error.message || 'Something went wrong';
             Alert.alert('Sign in Failed', message);
         } finally {
@@ -57,39 +53,57 @@ const Signin = () => {
     };
 
     return (
-        <View className="gap-10 bg-white rounded p-5 mt-5">
-            <Text>Admin dashboard</Text>
-            <Custominput
-                placeholder="Enter your email"
-                value={form.email}
-                onChangeText={(text) => setForm({ ...form, email: text })}
-                label="Email"
-                keyboardType="email-address"
-            />
+        <View>
+            <Text style={styles.title}>Seller Sign In 🔑</Text>
+            <Text style={styles.subtitle}>Access your dashboard</Text>
 
-            <Custominput
-                placeholder="Enter your password"
-                value={form.password}
-                onChangeText={(text) => setForm({ ...form, password: text })}
-                label="Password"
-                keyboardType="default"
-                secureTextEntry={true}
-            />
+            <View style={styles.form}>
+                <Custominput
+                    placeholder="seller@example.com"
+                    value={form.email}
+                    onChangeText={(text) => setForm({ ...form, email: text })}
+                    label="Email"
+                    keyboardType="email-address"
+                />
+                <View style={{ marginTop: 20 }}>
+                    <Custominput
+                        placeholder="••••••••"
+                        value={form.password}
+                        onChangeText={(text) => setForm({ ...form, password: text })}
+                        label="Password"
+                        secureTextEntry={!showPass}
+                        rightIcon={
+                            <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                                <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        }
+                    />
+                </View>
 
-            <CustomButton
-                title={isSubmitting ? 'Signing in...' : 'Sign In'}
-                onPress={submit}
-                isLoading={isSubmitting}
-            />
+                <View style={{ marginTop: 32 }}>
+                    <CustomButton
+                        title={isSubmitting ? 'Signing in…' : 'Sign In to Dashboard'}
+                        onPress={submit}
+                        isLoading={isSubmitting}
+                    />
+                </View>
+            </View>
 
-            <View className="flex justify-center mt-5 flex-row gap-2">
-                <Text className="base-regular text-gray-100">Don't have an account?</Text>
-                <Link href="/adminsign-up" className="base-bold text-primary">
-                    Sign Up
-                </Link>
+            <View style={styles.footer}>
+                <Text style={styles.footerText}>New seller? </Text>
+                <Link href="/adminsign-up" style={styles.footerLink}>Create Account</Link>
             </View>
         </View>
     );
 };
+
+const styles = StyleSheet.create({
+    title: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
+    subtitle: { fontSize: 15, color: '#6B7280', marginTop: 6, marginBottom: 32 },
+    form: {},
+    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 36 },
+    footerText: { color: '#6B7280', fontSize: 14 },
+    footerLink: { color: '#0f3460', fontSize: 14, fontWeight: '700' },
+});
 
 export default Signin;

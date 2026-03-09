@@ -1,12 +1,11 @@
 // app/_layout.tsx
-import { SplashScreen, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { useEffect } from "react";
 import './globals.css';
 
 export default function RootLayout() {
 
-  const [fontsLoaded, error] = useFonts({
+  useFonts({
     "QuickSand-Bold": require('../assets/fonts/Quicksand-Bold.ttf'),
     "QuickSand-Medium": require('../assets/fonts/Quicksand-Medium.ttf'),
     "QuickSand-Regular": require('../assets/fonts/Quicksand-Regular.ttf'),
@@ -14,16 +13,7 @@ export default function RootLayout() {
     "QuickSand-Light": require('../assets/fonts/Quicksand-Light.ttf'),
   });
 
-  useEffect(() => {
-    if (error) throw error;
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded, error]);
-
-  console.log("hello")
   return (
-
-
     <Stack screenOptions={{ headerShown: false }} />
-
   );
 }

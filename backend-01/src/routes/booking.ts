@@ -143,4 +143,75 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
+// GET user's bookings
+router.get('/', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        
+        const bookings = await prisma.booking.findMany({
+            where: { userId },
+            include: {
+                shop: {
+                    select: {
+                        id: true,
+                        occupation: true,
+                        speclization: true,
+                        price: true,
+                        image: true,
+                        address: true,
+                        latitude: true,
+                        longitude: true,
+                        Admin: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        res.status(200).json(bookings);
+    } catch (error: any) {
+        console.error("Error fetching bookings:", error);
+        res.status(500).json({
+            message: "Failed to fetch bookings",
+            error: error.message
+        });
+    }
+});
+
+// DELETE (Cancel) a booking
+router.delete('/:id', verifyToken, async (req, res) => {
+    try {
+        const bookingId = Number(req.params.id);
+        const userId = Number(req.user?.id);
+
+        const booking = await prisma.booking.findUnique({
+            where: { id: bookingId }
+        });
+
+        if (!booking) {
+            return res.status(404).json({ message: "Booking not found" });
+        }
+
+        if (booking.userId !== userId) {
+            return res.status(403).json({ message: "Unauthorized to cancel this booking" });
+        }
+
+        const updatedBooking = await prisma.booking.update({
+            where: { id: bookingId },
+            data: { booked: false }
+        });
+
+        res.status(200).json({ message: "Booking cancelled successfully", booking: updatedBooking });
+    } catch (error: any) {
+        console.error("Error cancelling booking:", error);
+        res.status(500).json({ message: "Failed to cancel booking", error: error.message });
+    }
+});
+
 export default router;

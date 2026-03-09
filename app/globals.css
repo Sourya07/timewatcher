@@ -78,7 +78,7 @@
     }
 
     .offer-card {
-        @apply w-full h-48 my-3 rounded-xl overflow-hidden shadow-lg flex items-center gap-5;
+        @apply w-full h-48 my-3 rounded-[32px] overflow-hidden shadow-2xl shadow-black/20 flex items-center gap-5 border border-black/5;
     }
 
     .offer-card__info {

@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 
 
 const router = express.Router();
-const JWT_SECRET = 'your_jwt_secret'; // 🔐 Use env in prod
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 // Zod Schemas
 const signupSchema = z.object({
@@ -67,20 +67,21 @@ router.post('/signup', async (req, res) => {
         return `${data}|${signature}`; // token = email|expiry|signature
     }
     const verificationToken = encodeURIComponent(generateVerificationToken(email));
-    const verificationLink = `https://timewatcher.onrender.com/api/v1/admin/verify-email?token=${verificationToken}`;
+    
+    // Email verification temporarily disabled (SendGrid not configured locally)
+    // const verificationLink = `https://timewatcher.onrender.com/api/v1/admin/verify-email?token=${verificationToken}`;
+    // console.log(verificationLink)
 
-    console.log(verificationLink)
-
-    await sgMail.send({
-        to: email, // recipient
-        from: "souryavardhan.23b1531158@abes.ac.in", // must be verified in SendGrid
-        subject: "Verify your email",
-        html: `
-                <h2>Welcome, ${name}!</h2>
-                <p>Click below to verify your email:</p>
-                <a href="${verificationLink}">Verify Email</a>
-            `,
-    });
+    // await sgMail.send({
+    //     to: email, // recipient
+    //     from: "souryavardhan.23b1531158@abes.ac.in", // must be verified in SendGrid
+    //     subject: "Verify your email",
+    //     html: `
+    //             <h2>Welcome, ${name}!</h2>
+    //             <p>Click below to verify your email:</p>
+    //             <a href="${verificationLink}">Verify Email</a>
+    //         `,
+    // });
 
     return res.status(201).json({
         message: 'User created. Please check your email to verify your account.',
@@ -92,6 +93,18 @@ router.post('/signup', async (req, res) => {
 });
 
 
+
+// ─── Validate current session ─────────────────────────────────────────────────
+router.get('/me', verifyAdminToken, async (req, res) => {
+    try {
+        const adminId = Number(req.user?.id);
+        const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+        if (!admin) return res.status(404).json({ error: 'Admin not found' });
+        return res.json({ id: admin.id, name: admin.name, email: admin.email });
+    } catch {
+        return res.status(500).json({ error: 'Server error' });
+    }
+});
 
 router.get("/verify-email", async (req, res) => {
     console.log("hello")
@@ -146,33 +159,42 @@ router.get("/verify-email", async (req, res) => {
 
 // Sign In
 router.post('/signin', async (req, res) => {
-    const result = signinSchema.safeParse(req.body);
-    if (!result.success) {
-        return res.status(400).json({ error: result.error.flatten().fieldErrors });
+    try {
+        const result = signinSchema.safeParse(req.body);
+        if (!result.success) {
+            return res.status(400).json({ error: result.error.flatten().fieldErrors });
+        }
+
+        const { email, password } = result.data;
+
+        const user = await prisma.admin.findUnique({ where: { email } });
+        if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+
+        // Email verification temporarily disabled (SendGrid not configured locally)
+        // if (!user.isVerified) {
+        //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
+        // }
+
+        const isValid = await bcrypt.compare(password, user!.password);
+        if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });
+
+        const token = jwt.sign({ userId: user!.id }, JWT_SECRET);
+
+        return res.json({ token });
+    } catch (error) {
+        console.error('Admin signin error:', error);
+        return res.status(500).json({ error: 'Server error during signin' });
     }
-
-    const { email, password } = result.data;
-
-    const user = await prisma.admin.findUnique({ where: { email } });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
-    if (!user.isVerified) {
-        return res.status(403).json({ error: 'Please verify your email before logging in.' });
-    }
-
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });
-
-    const token = jwt.sign(
-        { userId: user.id },
-        JWT_SECRET
-    );
-
-    return res.json({ token });
 });
 
 router.post('/adminshop', verifyAdminToken, async (req, res) => {
     const adminId = Number(req.user?.id);
 
+    // 🐛 Debug: Log token info
+    console.log('=== /adminshop called ===')
+    console.log('req.user:', req.user);
+    console.log('adminId extracted:', adminId);
+    console.log('Authorization header:', req.headers.authorization?.substring(0, 40) + '...');
 
     const {
         image,
@@ -188,12 +210,11 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
     } = req.body;
 
     try {
-        // ✅ Validate before DB insert
-
-
         const adminExists = await prisma.admin.findUnique({
             where: { id: adminId }
         });
+        console.log('Admin found in DB:', adminExists ? `id=${adminExists.id}, email=${adminExists.email}` : 'NOT FOUND');
+
         if (!adminExists) {
             return res.status(404).json({ error: 'Admin not found' });
         }

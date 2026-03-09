@@ -1,8 +1,10 @@
+import 'dotenv/config'; // ← MUST be first — loads .env before anything else
 import express from 'express';
 import adminroutes from './routes/admin'
 import userroutes from './routes/user'
 import bookroutes from './routes/booking'
 import cors from 'cors';
+
 
 
 

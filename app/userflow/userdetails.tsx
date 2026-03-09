@@ -21,25 +21,21 @@ export default function MyFormScreen() {
         }
 
         let location = await Location.getCurrentPositionAsync({});
-        setCoords({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-        });
+        const { latitude, longitude } = location.coords;
+        setCoords({ latitude, longitude });
 
-        // Get address from Google API
         try {
-            const resp = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.coords.latitude},${location.coords.longitude}&key=${GOOGLE_API_KEY}`
-            );
-            const data = await resp.json();
-            console.log(resp)
-            if (data.status === "OK") {
-                setAddress(data.results[0]?.formatted_address || "");
+            // Use Expo's built-in reverse geocoder (no API key needed)
+            const geocoded = await Location.reverseGeocodeAsync({ latitude, longitude });
+            if (geocoded && geocoded.length > 0) {
+                const g = geocoded[0];
+                const parts = [g.name, g.street, g.district, g.city, g.region, g.country].filter(Boolean);
+                setAddress(parts.join(", "));
             } else {
-                Alert.alert("Error", "Failed to get address");
+                Alert.alert("Error", "Could not determine address for your location.");
             }
         } catch (err) {
-            Alert.alert("Error", "Failed to fetch address");
+            Alert.alert("Error", "Failed to fetch address. Check your internet connection.");
         }
     };
 

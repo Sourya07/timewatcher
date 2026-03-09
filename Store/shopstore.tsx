@@ -1,6 +1,6 @@
-// types/shop.ts (or your Zustand store file)
+// Store/shopstore.tsx
 import { create } from "zustand";
-import axios from "axios";
+import apiClient from "@/constants/axiosInstance";
 
 export interface Shop {
     id: number;
@@ -9,12 +9,11 @@ export interface Shop {
     address: string;
     mobilenumber: string;
     occupation: string;
-    speclization: string
-
+    speclization: string;
     latitude: number;
     longitude: number;
-    timein: number;
-    timeout: number;
+    timein: string;
+    timeout: string;
     price: number;
 }
 
@@ -25,7 +24,7 @@ interface ShopState {
     setShops: (shops: Shop[]) => void;
     getShopById: (id: string) => Shop | undefined;
     getShopByname: (name: string) => Shop[];
-    fetchShops: () => Promise<void>;
+    fetchShops: () => Promise<Shop[]>;
 }
 
 export const useShopStore = create<ShopState>((set, get) => ({
@@ -38,16 +37,20 @@ export const useShopStore = create<ShopState>((set, get) => ({
     getShopById: (id) => get().shops.find((shop) => shop.id === Number(id)),
 
     getShopByname: (name) =>
-        get().shops.filter((shop) => shop.occupation.toLowerCase() === name.toLowerCase()),
+        get().shops.filter(
+            (shop) => shop.occupation.toLowerCase() === name.toLowerCase()
+        ),
+
     fetchShops: async () => {
         set({ loading: true, error: null });
         try {
-            const res = await axios.get(
-                "https://timewatcher.onrender.com/api/v1/user/adminshops"
-            );
-            set({ shops: res.data.shops || [], loading: false });
+            const res = await apiClient.get("/api/v1/user/adminshops");
+            const shops: Shop[] = res.data.shops || [];
+            set({ shops, loading: false });
+            return shops;
         } catch (error: any) {
             set({ error: error.message || "Failed to fetch shops", loading: false });
+            return [];
         }
     },
 }));
