@@ -25,9 +25,16 @@ export interface AdminShopPayload {
     timein: string;
     timeout: string;
     price: number;
+    isOpen?: boolean;
+    slotDuration?: number;
 }
 
 export const createAdminShop = async (payload: AdminShopPayload) => {
     const res = await apiClient.post('/api/v1/admin/adminshop', payload);
+    return res.data;
+};
+
+export const updateAdminShopSettings = async (shopId: number, settings: { isOpen?: boolean, slotDuration?: number, price?: number }) => {
+    const res = await apiClient.patch(`/api/v1/admin/adminshop/${shopId}/settings`, settings);
     return res.data;
 };

@@ -15,6 +15,8 @@ export interface Shop {
     timein: string;
     timeout: string;
     price: number;
+    isOpen?: boolean;
+    slotDuration?: number;
 }
 
 interface ShopState {

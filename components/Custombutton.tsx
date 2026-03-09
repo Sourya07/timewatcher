@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, TouchableOpacity, ActivityIndicator, View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeStore } from '@/Store/themeStore';
 
 interface CustomButtonProps {
     onPress?: () => void;
@@ -21,6 +22,7 @@ const CustomButton = ({
     isLoading = false,
     variant = 'primary',
 }: CustomButtonProps) => {
+    const { colors } = useThemeStore();
     if (variant === 'outline') {
         return (
             <TouchableOpacity
@@ -31,9 +33,9 @@ const CustomButton = ({
             >
                 {leftIcon && <View style={{ marginRight: 8 }}>{leftIcon}</View>}
                 {isLoading ? (
-                    <ActivityIndicator size="small" color="#FE8C00" />
+                    <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                    <Text style={[styles.outlineBtnText, textStyle]}>{title}</Text>
+                    <Text style={[styles.outlineBtnText, { color: colors.primary }, textStyle]}>{title}</Text>
                 )}
             </TouchableOpacity>
         );
@@ -48,9 +50,9 @@ const CustomButton = ({
                 disabled={isLoading}
             >
                 {isLoading ? (
-                    <ActivityIndicator size="small" color="#FE8C00" />
+                    <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                    <Text style={[styles.ghostBtnText, textStyle]}>{title}</Text>
+                    <Text style={[styles.ghostBtnText, { color: colors.primary }, textStyle]}>{title}</Text>
                 )}
             </TouchableOpacity>
         );
@@ -64,7 +66,11 @@ const CustomButton = ({
             disabled={isLoading}
         >
             <LinearGradient
-                colors={isLoading ? ['#ffb347', '#ffa500'] : ['#FF8C00', '#FF6B00']}
+                colors={
+                    isLoading
+                        ? [colors.primary, colors.headerGradientEnd]
+                        : [colors.primary, colors.headerGradientEnd]
+                }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradient}
@@ -86,7 +92,7 @@ const styles = StyleSheet.create({
     wrapper: {
         borderRadius: 16,
         overflow: 'hidden',
-        shadowColor: '#FF8C00',
+        shadowColor: '#1877F2',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.35,
         shadowRadius: 12,
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
     outlineBtn: {
         borderRadius: 16,
         borderWidth: 1.5,
-        borderColor: '#FE8C00',
+        borderColor: '#1877F2',
         paddingVertical: 15,
         paddingHorizontal: 24,
         flexDirection: 'row',
@@ -123,7 +129,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     outlineBtnText: {
-        color: '#FE8C00',
         fontSize: 16,
         fontWeight: '700',
         letterSpacing: 0.5,
@@ -135,7 +140,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     ghostBtnText: {
-        color: '#FE8C00',
         fontSize: 15,
         fontWeight: '600',
     },

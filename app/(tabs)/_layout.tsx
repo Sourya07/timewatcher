@@ -2,6 +2,7 @@ import { Image, Text, View, Animated, Platform } from "react-native";
 import { images } from "@/constants";
 import { Tabs } from "expo-router";
 import { useEffect, useRef } from "react";
+import { useThemeStore } from "@/Store/themeStore";
 
 interface TabBarIconProps {
     focused: boolean;
@@ -9,10 +10,10 @@ interface TabBarIconProps {
     title: string;
 }
 
-const ACTIVE_COLOR = "#007AFF";
-const INACTIVE_COLOR = "#8E8E93";
-
 const TabBarIcon = ({ focused, icon, title }: TabBarIconProps) => {
+    const { colors } = useThemeStore();
+    const ACTIVE_COLOR = colors.primary;
+    const INACTIVE_COLOR = colors.textMuted;
     const iconScale = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
@@ -62,6 +63,8 @@ const TabBarIcon = ({ focused, icon, title }: TabBarIconProps) => {
 };
 
 export default function TabLayout() {
+    const { colors } = useThemeStore();
+
     return (
         <Tabs
             screenOptions={{
@@ -70,9 +73,9 @@ export default function TabLayout() {
                 tabBarHideOnKeyboard: true,
                 tabBarStyle: {
                     height: Platform.OS === "ios" ? 84 : 60,
-                    backgroundColor: "#FFFFFF",
+                    backgroundColor: colors.surface,
                     borderTopWidth: 0.5,
-                    borderTopColor: "rgba(0,0,0,0.12)",
+                    borderTopColor: colors.border,
                     shadowColor: "#000",
                     shadowOffset: { width: 0, height: -2 },
                     shadowOpacity: 0.05,

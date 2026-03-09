@@ -8,9 +8,9 @@ import {
     Animated,
     StyleSheet,
     Dimensions,
-    NativeSyntheticEvent,
     NativeScrollEvent,
     TouchableOpacity,
+    Switch
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,6 +18,7 @@ import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import apiClient from "@/constants/axiosInstance";
+import { useThemeStore } from "@/Store/themeStore";
 import type { ReactNode } from "react";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -32,23 +33,23 @@ interface UserData {
     profile?: { address?: string; mobilenumber?: string; image?: string };
 }
 
-type QuickActionProps = { icon: ReactNode; label: string; onPress?: () => void };
-function QuickAction({ icon, label, onPress }: QuickActionProps) {
+type QuickActionProps = { icon: ReactNode; label: string; onPress?: () => void; colors: any };
+function QuickAction({ icon, label, onPress, colors }: QuickActionProps) {
     return (
         <Pressable onPress={onPress} style={styles.quickAction}>
-            <View style={styles.quickActionIcon}>{icon}</View>
-            <Text style={styles.quickActionLabel}>{label}</Text>
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.background }]}>{icon}</View>
+            <Text style={[styles.quickActionLabel, { color: colors.text }]}>{label}</Text>
         </Pressable>
     );
 }
 
-type ListItemProps = { icon: ReactNode; label: string; badge?: string; onPress?: () => void };
-function ListItem({ icon, label, badge, onPress }: ListItemProps) {
+type ListItemProps = { icon: ReactNode; label: string; badge?: string; onPress?: () => void; rightElement?: ReactNode; colors: any };
+function ListItem({ icon, label, badge, onPress, rightElement, colors }: ListItemProps) {
     return (
         <Pressable onPress={onPress} style={styles.listItem}>
             <View style={styles.listItemLeft}>
-                <View style={styles.listItemIcon}>{icon}</View>
-                <Text style={styles.listItemLabel}>{label}</Text>
+                <View style={[styles.listItemIcon, { backgroundColor: colors.background }]}>{icon}</View>
+                <Text style={[styles.listItemLabel, { color: colors.text }]}>{label}</Text>
             </View>
             <View style={styles.listItemRight}>
                 {badge && (
@@ -56,13 +57,14 @@ function ListItem({ icon, label, badge, onPress }: ListItemProps) {
                         <Text style={styles.badgeText}>{badge}</Text>
                     </View>
                 )}
-                <Feather name="chevron-right" size={18} color="#D1D5DB" />
+                {rightElement ? rightElement : <Feather name="chevron-right" size={18} color={colors.textMuted} />}
             </View>
         </Pressable>
     );
 }
 
 export default function ProfileScreen() {
+    const { isDarkMode, toggleTheme, colors } = useThemeStore();
     const [loading, setLoading] = useState(true);
     const [userData, setUserData] = useState<UserData>();
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -96,9 +98,9 @@ export default function ProfileScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#FE8C00" />
-                <Text style={styles.loadingText}>Loading profile…</Text>
+            <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: colors.text }]}>Loading profile…</Text>
             </SafeAreaView>
         );
     }
@@ -116,7 +118,7 @@ export default function ProfileScreen() {
     });
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             {/* Scrollable content */}
             <Animated.ScrollView
                 scrollEventThrottle={16}
@@ -145,47 +147,67 @@ export default function ProfileScreen() {
                     {/* Quick Actions */}
                     <View style={styles.quickActionsRow}>
                         <QuickAction
-                            icon={<Ionicons name="location-outline" size={20} color="#FE8C00" />}
+                            icon={<Ionicons name="location-outline" size={20} color={colors.primary} />}
                             label="Address"
+                            colors={colors}
                             onPress={() => router.push({ pathname: "../userflow/savedaddress", params: { address: userData.profile?.address || "" } })}
                         />
-                        <QuickAction icon={<Ionicons name="card-outline" size={20} color="#6366F1" />} label="Payment" />
-                        <QuickAction icon={<MaterialIcons name="chat-bubble-outline" size={20} color="#10B981" />} label="Refunds" />
-                        <QuickAction icon={<Ionicons name="wallet-outline" size={20} color="#F59E0B" />} label="Wallet" />
+                        <QuickAction icon={<Ionicons name="card-outline" size={20} color="#6366F1" />} label="Payment" colors={colors} />
+                        <QuickAction icon={<MaterialIcons name="chat-bubble-outline" size={20} color={colors.success} />} label="Refunds" colors={colors} />
+                        <QuickAction icon={<Ionicons name="wallet-outline" size={20} color={colors.warning} />} label="Wallet" colors={colors} />
+                    </View>
+
+                    {/* App Settings */}
+                    <View style={[styles.menuCard, { backgroundColor: colors.surface }]}>
+                        <Text style={[styles.menuSection, { color: colors.text }]}>App Settings</Text>
+                        <ListItem 
+                            icon={<Ionicons name={isDarkMode ? "moon" : "sunny"} size={18} color={isDarkMode ? "#A78BFA" : "#FBBF24"} />} 
+                            label="Dark Theme" 
+                            colors={colors}
+                            rightElement={
+                                <Switch 
+                                    value={isDarkMode} 
+                                    onValueChange={toggleTheme} 
+                                    trackColor={{ false: "#D1D5DB", true: colors.primary }}
+                                    thumbColor="white"
+                                />
+                            }
+                        />
                     </View>
 
                     {/* Menu Section */}
-                    <View style={styles.menuCard}>
-                        <Text style={styles.menuSection}>Finance</Text>
-                        <ListItem icon={<MaterialIcons name="credit-card" size={18} color="#6366F1" />} label="Your Cards" />
-                        <View style={styles.divider} />
-                        <ListItem icon={<Feather name="gift" size={18} color="#EC4899" />} label="My Vouchers" badge="3" />
-                        <View style={styles.divider} />
-                        <ListItem icon={<Feather name="file-text" size={18} color="#3B82F6" />} label="Account Statement" />
+                    <View style={[styles.menuCard, { marginTop: 12, backgroundColor: colors.surface }]}>
+                        <Text style={[styles.menuSection, { color: colors.text }]}>Finance</Text>
+                        <ListItem icon={<MaterialIcons name="credit-card" size={18} color="#6366F1" />} label="Your Cards" colors={colors} />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <ListItem icon={<Feather name="gift" size={18} color="#EC4899" />} label="My Vouchers" badge="3" colors={colors} />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <ListItem icon={<Feather name="file-text" size={18} color="#3B82F6" />} label="Account Statement" colors={colors} />
                     </View>
 
-                    <View style={[styles.menuCard, { marginTop: 12 }]}>
-                        <Text style={styles.menuSection}>Rewards & Perks</Text>
-                        <ListItem icon={<Feather name="briefcase" size={18} color="#8B5CF6" />} label="Corporate Rewards" />
-                        <View style={styles.divider} />
-                        <ListItem icon={<Feather name="book-open" size={18} color="#0EA5E9" />} label="Student Rewards" />
-                        <View style={styles.divider} />
-                        <ListItem icon={<Feather name="award" size={18} color="#F59E0B" />} label="Partner Rewards" />
+                    <View style={[styles.menuCard, { marginTop: 12, backgroundColor: colors.surface }]}>
+                        <Text style={[styles.menuSection, { color: colors.text }]}>Rewards & Perks</Text>
+                        <ListItem icon={<Feather name="briefcase" size={18} color="#8B5CF6" />} label="Corporate Rewards" colors={colors} />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <ListItem icon={<Feather name="book-open" size={18} color="#0EA5E9" />} label="Student Rewards" colors={colors} />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <ListItem icon={<Feather name="award" size={18} color="#F59E0B" />} label="Partner Rewards" colors={colors} />
                     </View>
 
-                    <View style={[styles.menuCard, { marginTop: 12 }]}>
-                        <Text style={styles.menuSection}>My Activity</Text>
+                    <View style={[styles.menuCard, { marginTop: 12, backgroundColor: colors.surface }]}>
+                        <Text style={[styles.menuSection, { color: colors.text }]}>My Activity</Text>
                         <ListItem 
                             icon={<Feather name="bookmark" size={18} color="#14B8A6" />} 
                             label="My Bookings" 
+                            colors={colors}
                             onPress={() => router.push('/(tabs)/cart')}
                         />
-                        <View style={styles.divider} />
-                        <ListItem icon={<Feather name="heart" size={18} color="#EF4444" />} label="Favourites" />
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <ListItem icon={<Feather name="heart" size={18} color="#EF4444" />} label="Favourites" colors={colors} />
                     </View>
 
                     <TouchableOpacity 
-                        style={styles.logoutBtn} 
+                        style={[styles.logoutBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} 
                         activeOpacity={0.8}
                         onPress={handleLogout}
                     >
@@ -200,7 +222,7 @@ export default function ProfileScreen() {
             {/* Animated Sticky Header */}
             <Animated.View style={[styles.header, { height: headerHeight }]}>
                 <LinearGradient
-                    colors={["#FF8C00", "#FF5F00"]}
+                    colors={[colors.headerGradientStart, colors.headerGradientEnd]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -226,7 +248,13 @@ export default function ProfileScreen() {
                         </View>
                         <View style={styles.avatarWrapper}>
                             <Image
-                                source={{ uri: userData.profile?.image || "https://ui-avatars.com/api/?name=" + encodeURIComponent(userData.name) + "&background=FF8C00&color=fff&size=150" }}
+                                source={{
+                                    uri:
+                                        userData.profile?.image ||
+                                        "https://ui-avatars.com/api/?name=" +
+                                            encodeURIComponent(userData.name) +
+                                            "&background=1877F2&color=fff&size=150",
+                                }}
                                 style={styles.avatar}
                             />
                         </View>
@@ -238,9 +266,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#F3F4F6' },
-    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' },
-    loadingText: { marginTop: 12, color: '#6B7280', fontSize: 14 },
+    safeArea: { flex: 1 },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    loadingText: { marginTop: 12, fontSize: 14 },
     header: {
         position: 'absolute', top: 0, left: 0, right: 0,
         overflow: 'hidden', zIndex: 1000,
@@ -256,55 +284,46 @@ const styles = StyleSheet.create({
     helpBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
     helpText: { color: 'white', fontSize: 13, fontWeight: '600' },
     headerUser: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    headerName: { color: 'white', fontSize: 24, fontWeight: '800' },
-    headerEmail: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
-    headerMobile: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 1 },
+    headerName: { color: 'white', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+    headerEmail: { color: 'white', fontSize: 13, opacity: 0.9, marginTop: 4 },
+    headerMobile: { color: 'white', fontSize: 13, opacity: 0.9, marginTop: 2 },
     avatarWrapper: {
-        width: 60, height: 60, borderRadius: 30,
-        borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.8)',
-        overflow: 'hidden', shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
+        padding: 3, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 40,
     },
-    avatar: { width: '100%', height: '100%' },
+    avatar: { width: 68, height: 68, borderRadius: 34 },
     content: { paddingHorizontal: 16 },
     memberCard: {
-        borderRadius: 20, padding: 20, marginBottom: 16, overflow: 'hidden',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
+        borderRadius: 20, padding: 20, marginTop: 12,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
+        overflow: 'hidden',
     },
-    memberCardInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    memberCardInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 2 },
     memberCardTitle: { color: 'white', fontSize: 16, fontWeight: '700' },
-    memberCardSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 4, maxWidth: 200 },
-    memberCardCircle: {
-        position: 'absolute', width: 120, height: 120, borderRadius: 60,
-        backgroundColor: 'rgba(255,255,255,0.05)', right: -20, bottom: -30,
-    },
-    activeBadge: { backgroundColor: '#22C55E', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    activeBadgeText: { color: 'white', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-    quickActionsRow: { flexDirection: 'row', marginBottom: 16 },
-    quickAction: {
-        flex: 1, backgroundColor: 'white', borderRadius: 16, paddingVertical: 16,
-        alignItems: 'center', marginHorizontal: 4,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
-    },
-    quickActionIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-    quickActionLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', textAlign: 'center' },
+    memberCardSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 },
+    activeBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    activeBadgeText: { color: 'white', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+    memberCardCircle: { position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.05)', right: -20, top: -40, zIndex: 1 },
+    quickActionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 8 },
+    quickAction: { alignItems: 'center', width: '25%' },
+    quickActionIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+    quickActionLabel: { fontSize: 12, fontWeight: '600' },
     menuCard: {
-        backgroundColor: 'white', borderRadius: 20, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+        borderRadius: 20, padding: 20, paddingTop: 16,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
     },
-    menuSection: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-    listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
+    menuSection: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 },
+    listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
     listItemLeft: { flexDirection: 'row', alignItems: 'center' },
-    listItemIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-    listItemLabel: { fontSize: 15, color: '#1F2937', fontWeight: '500' },
-    listItemRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    badge: { backgroundColor: '#FEF3C7', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-    badgeText: { color: '#D97706', fontSize: 11, fontWeight: '700' },
-    divider: { height: 1, backgroundColor: '#F3F4F6' },
+    listItemIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    listItemLabel: { fontSize: 15, fontWeight: '600' },
+    listItemRight: { flexDirection: 'row', alignItems: 'center' },
+    badge: { backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, marginRight: 8 },
+    badgeText: { color: 'white', fontSize: 10, fontWeight: '700' },
+    divider: { height: 1, width: '100%', marginVertical: 4 },
     logoutBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-        marginTop: 20, paddingVertical: 16, backgroundColor: '#FEF2F2',
-        borderRadius: 16, borderWidth: 1, borderColor: '#FECACA',
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 16, borderRadius: 16, marginTop: 24,
+        borderWidth: 1,
     },
-    logoutText: { color: '#EF4444', fontSize: 15, fontWeight: '700' },
+    logoutText: { color: '#EF4444', fontSize: 15, fontWeight: '700', marginLeft: 8 },
 });

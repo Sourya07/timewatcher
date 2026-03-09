@@ -36,6 +36,8 @@ model AdminShop {
   timein       String
   timeout      String
   price        Int
+  isOpen       Boolean   @default(true)
+  slotDuration Int       @default(30)
   AdminId      Int
   Admin        Admin     @relation(fields: [AdminId], references: [id])
   bookings     Booking[]
@@ -71,8 +73,9 @@ model Booking {
   duration  Int // in minutes
   price     Int
   booked    Boolean
-  startTime String
-  endTime   String
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("upcoming") // upcoming, active, completed, cancelled
   createdAt DateTime @default(now())
 
   shop AdminShop @relation(fields: [shopId], references: [id])

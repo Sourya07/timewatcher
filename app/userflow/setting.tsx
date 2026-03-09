@@ -10,6 +10,7 @@ import { router } from "expo-router";
 import { saveUserDetails } from "@/constants/userApi";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useThemeStore } from "@/Store/themeStore";
 
 const GOOGLE_API_KEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw";
 
@@ -20,6 +21,7 @@ export default function LocationScreen() {
     const [detecting, setDetecting] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [focused, setFocused] = useState(false);
+    const { colors } = useThemeStore();
 
     const detectLocation = async () => {
         setDetecting(true);
@@ -90,9 +92,14 @@ export default function LocationScreen() {
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.root}>
+            <View style={[styles.root, { backgroundColor: colors.primary }]}>
                 {/* Gradient top portion */}
-                <LinearGradient colors={['#FF8C00', '#FF5F00', '#FF3B00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
+                <LinearGradient
+                    colors={[colors.headerGradientStart, colors.headerGradientEnd]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.gradient}
+                >
                     <View style={styles.circle1} />
                     <View style={styles.circle2} />
                     <View style={styles.heroContent}>
@@ -105,20 +112,20 @@ export default function LocationScreen() {
                 </LinearGradient>
 
                 {/* White Card */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.surface }]}>
                     <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
                         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-                            <Text style={styles.cardTitle}>Enter your location</Text>
+                            <Text style={[styles.cardTitle, { color: colors.text }]}>Enter your location</Text>
 
                             {/* Search Input */}
                             <View style={[styles.searchBox, focused && styles.searchBoxFocused]}>
-                                <Ionicons name="search-outline" size={18} color={focused ? '#FE8C00' : '#9CA3AF'} />
+                                <Ionicons name="search-outline" size={18} color={focused ? colors.primary : '#9CA3AF'} />
                                 <TextInput
                                     value={location}
                                     onChangeText={fetchSuggestions}
                                     placeholder="Start typing your address…"
                                     placeholderTextColor="#BDBDBD"
-                                    style={styles.searchInput}
+                                    style={[styles.searchInput, { color: colors.text }]}
                                     onFocus={() => setFocused(true)}
                                     onBlur={() => setFocused(false)}
                                     autoCorrect={false}
@@ -141,7 +148,7 @@ export default function LocationScreen() {
                                             activeOpacity={0.7}
                                         >
                                             <View style={styles.suggestionIcon}>
-                                                <Ionicons name="location-outline" size={14} color="#FE8C00" />
+                                                <Ionicons name="location-outline" size={14} color={colors.primary} />
                                             </View>
                                             <Text style={styles.suggestionText} numberOfLines={2}>{s}</Text>
                                         </TouchableOpacity>
@@ -167,9 +174,9 @@ export default function LocationScreen() {
                                 disabled={detecting}
                             >
                                 {detecting ? (
-                                    <ActivityIndicator size="small" color="#FE8C00" />
+                                    <ActivityIndicator size="small" color={colors.primary} />
                                 ) : (
-                                    <Ionicons name="navigate" size={18} color="#FE8C00" />
+                                    <Ionicons name="navigate" size={18} color={colors.primary} />
                                 )}
                                 <Text style={styles.detectBtnText}>
                                     {detecting ? 'Detecting…' : 'Use My Current Location'}
@@ -177,7 +184,12 @@ export default function LocationScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85} disabled={submitting} style={styles.submitBtnWrapper}>
-                                <LinearGradient colors={['#FF8C00', '#FF5F00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtn}>
+                                <LinearGradient
+                                    colors={[colors.primary, colors.headerGradientEnd]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.submitBtn}
+                                >
                                     {submitting ? (
                                         <ActivityIndicator size="small" color="white" />
                                     ) : (
@@ -197,7 +209,7 @@ export default function LocationScreen() {
 }
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#FF8C00' },
+    root: { flex: 1 },
     gradient: { height: 240, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 32, overflow: 'hidden' },
     circle1: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,255,255,0.08)', top: -60, right: -50 },
     circle2: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.05)', top: 60, left: -40 },
@@ -219,7 +231,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8F9FA', borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E7EB',
         paddingHorizontal: 16, paddingVertical: 4,
     },
-    searchBoxFocused: { borderColor: '#FE8C00', backgroundColor: '#FFFBF5' },
+    searchBoxFocused: { borderColor: '#1877F2', backgroundColor: '#E7F0FF' },
     searchInput: { flex: 1, fontSize: 15, color: '#1F2937', paddingVertical: 14 },
     suggestions: {
         backgroundColor: 'white', borderRadius: 14, marginTop: 8, borderWidth: 1.5, borderColor: '#E5E7EB',
@@ -240,8 +252,8 @@ const styles = StyleSheet.create({
         borderWidth: 1.5, borderColor: '#FED7AA', borderRadius: 16,
         paddingVertical: 16, backgroundColor: '#FFF7ED',
     },
-    detectBtnText: { color: '#FE8C00', fontSize: 15, fontWeight: '700' },
-    submitBtnWrapper: { borderRadius: 16, overflow: 'hidden', shadowColor: '#FF8C00', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
+    detectBtnText: { color: '#1877F2', fontSize: 15, fontWeight: '700' },
+    submitBtnWrapper: { borderRadius: 16, overflow: 'hidden', shadowColor: '#1877F2', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
     submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
     submitBtnText: { color: 'white', fontSize: 16, fontWeight: '800' },
 });

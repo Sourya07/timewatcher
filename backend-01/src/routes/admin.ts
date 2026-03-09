@@ -206,7 +206,9 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
         speclization,
         timein,
         timeout,
-        price
+        price,
+        isOpen,
+        slotDuration
     } = req.body;
 
     try {
@@ -231,6 +233,8 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
                 timein,
                 timeout,
                 price,
+                isOpen: isOpen ?? true,
+                slotDuration: slotDuration ?? 30,
                 Admin: { connect: { id: adminId } },
             },
         });
@@ -255,6 +259,41 @@ router.get('/adminshops', verifyAdminToken, async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: 'Failed to fetch shops' });
+    }
+});
+
+// Update Shop Scheduling Settings
+router.patch('/adminshop/:id/settings', verifyAdminToken, async (req, res) => {
+    try {
+        const shopId = Number(req.params.id);
+        const adminId = Number(req.user?.id);
+        const { isOpen, slotDuration, price } = req.body;
+
+        const shop = await prisma.adminShop.findUnique({ where: { id: shopId } });
+        
+        if (!shop) {
+            return res.status(404).json({ error: "Shop not found" });
+        }
+        
+        if (shop.AdminId !== adminId) {
+            return res.status(403).json({ error: "Unauthorized. You do not own this shop." });
+        }
+
+        const dataToUpdate: any = {};
+        if (isOpen !== undefined) dataToUpdate.isOpen = Boolean(isOpen);
+        if (slotDuration !== undefined) dataToUpdate.slotDuration = Number(slotDuration);
+        if (price !== undefined) dataToUpdate.price = Number(price);
+
+        const updatedShop = await prisma.adminShop.update({
+            where: { id: shopId },
+            data: dataToUpdate
+        });
+
+        return res.status(200).json({ message: "Settings updated", shop: updatedShop });
+
+    } catch (error) {
+        console.error("Error updating shop settings:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 

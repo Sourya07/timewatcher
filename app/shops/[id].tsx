@@ -1,18 +1,20 @@
 import { View, Text, Image, ScrollView, ActivityIndicator, Pressable, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useShopStore } from '@/Store/shopstore';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import MapView, { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
-import apiClient from '@/constants/axiosInstance';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getShopSlots, createBooking } from '@/constants/bookingApi';
+import { useThemeStore } from '@/Store/themeStore';
 
 const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw";
 
 export default function ShopDetails() {
     const router = useRouter();
+    const { colors } = useThemeStore();
     const userLocation = { latitude: 27.1027378242211, longitude: 83.2817002769377 };
     const { id } = useLocalSearchParams<{ id: string }>();
     const getShopById = useShopStore((state) => state.getShopById);
@@ -30,93 +32,80 @@ export default function ShopDetails() {
         );
     }
 
-    const time12hToMinutes = (time?: string) => {
-        if (!time) return 0;
-        const [timePart, modifier] = time.trim().split(" ");
-        let [hours, minutes] = timePart.split(":").map(Number);
-        if (modifier?.toUpperCase() === "PM" && hours !== 12) hours += 12;
-        if (modifier?.toUpperCase() === "AM" && hours === 12) hours = 0;
-        return hours * 60 + minutes;
-    };
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const d = new Date();
+        return d.toISOString().split('T')[0];
+    });
+    const [slots, setSlots] = useState<any[]>([]);
+    const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
+    const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
-    const minutesToTime12h = (minutes: number) => {
-        let hours = Math.floor(minutes / 60);
-        let mins = minutes % 60;
-        const ampm = hours >= 12 ? "PM" : "AM";
-        hours = hours % 12 || 12;
-        return `${hours}:${mins.toString().padStart(2, "0")} ${ampm}`;
-    };
+    // Generate next 7 dates
+    const next7Days = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        return {
+            dateStr: d.toISOString().split('T')[0],
+            dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+            dayNum: d.getDate()
+        };
+    });
 
-    const startMinutes = time12hToMinutes(String(shop.timein || "09:00 AM"));
-    const rawEndMinutes = time12hToMinutes(String(shop.timeout || "05:00 PM"));
-    // If timeout is missing or same as timein, default to 1 hour later for usability
-    const endMinutes = (rawEndMinutes <= startMinutes) ? startMinutes + 60 : rawEndMinutes;
- 
-    // State for start and end minutes
-    const [startVal, setStartVal] = useState(startMinutes);
-    const [endVal, setEndVal] = useState(endMinutes);
- 
-    // Synchronize state if shop data changes (like moving between shops)
-    useEffect(() => {
-        const sm = time12hToMinutes(String(shop.timein || "09:00 AM"));
-        const rem = time12hToMinutes(String(shop.timeout || "05:00 PM"));
-        const em = (rem <= sm) ? sm + 60 : rem;
-        setStartVal(sm);
-        setEndVal(em);
-    }, [shop.timein, shop.timeout]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchSlots(selectedDate);
+        }, [selectedDate, id])
+    );
 
-    // Derive everything from the numeric state directly to avoid re-render loops
-    const startTimeStr = minutesToTime12h(startVal);
-    const endTimeStr = minutesToTime12h(endVal);
-    const selectedTimeRange = `${startTimeStr} - ${endTimeStr}`;
-    const timeDifference = Math.max(0, endVal - startVal);
-
-    const adjustTime = (type: 'start' | 'end', delta: number) => {
-        if (type === 'start') {
-            // Allow start to move within [startMinutes, endVal - 1]
-            const next = Math.max(startMinutes, Math.min(endVal - 1, startVal + delta));
-            setStartVal(next);
-        } else {
-            // Allow end to move within [startVal + 1, endMinutes]
-            const next = Math.min(endMinutes, Math.max(startVal + 1, endVal + delta));
-            setEndVal(next);
+    const fetchSlots = async (dateStr: string) => {
+        setIsLoadingSlots(true);
+        setSelectedSlot(null);
+        try {
+            const res = await getShopSlots(Number(id), dateStr);
+            setSlots(res.slots || []);
+        } catch (error) {
+            console.error("Failed to fetch slots", error);
+        } finally {
+            setIsLoadingSlots(false);
         }
     };
 
     const shopPrice = Number(shop?.price || 0);
-    const totalPrice = (shopPrice * timeDifference) || 0;
+    const durationMins = shop?.slotDuration ? Number(shop.slotDuration) : 30;
+    const totalPrice = shopPrice; // now treated as price per slot directly
 
     const handleBooking = async () => {
-        if (timeDifference <= 0) {
-            Alert.alert("Invalid Duration", "Please select a valid time range.");
+        if (!selectedSlot) {
+            Alert.alert("Invalid Duration", "Please select an available time slot.");
             return;
         }
 
         try {
-            await apiClient.post("/api/v1/booking/", {
+            await createBooking({
                 shopId: Number(id),
-                duration: timeDifference,
+                duration: durationMins,
                 price: totalPrice,
-                startTime: startTimeStr,
-                endTime: endTimeStr
+                bookingStart: selectedSlot.startTime,
+                bookingEnd: selectedSlot.endTime
             });
-            Alert.alert("✅ Booking Confirmed!", `Your appointment is booked for ${selectedTimeRange}`);
-            router.push('/(tabs)/cart');
+            Alert.alert("✅ Booking Confirmed!", `Your appointment is booked for ${selectedSlot.time}`);
+            router.push('/(tabs)/cart' as any);
         } catch (error: any) {
-            Alert.alert("Booking Failed", error.message || "Please try again.");
+            Alert.alert("Booking Failed", error?.response?.data?.message || error.message || "Please try again.");
+            fetchSlots(selectedDate); // Refresh slots
         }
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             {/* Top bar */}
-            <View style={styles.topBar}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.8}>
-                    <Ionicons name="arrow-back" size={20} color="#1F2937" />
+            <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.background }]} activeOpacity={0.8}>
+                    <Ionicons name="arrow-back" size={20} color={colors.text} />
                 </TouchableOpacity>
                 <View style={styles.locationInfo}>
-                    <Ionicons name="location-sharp" size={14} color="#FE8C00" />
-                    <Text style={styles.locationText} numberOfLines={1}>
+                    <Ionicons name="location-sharp" size={14} color={colors.primary} />
+                    <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
                         {shop.address ? shop.address.split(" ").slice(0, 4).join(" ") : "Location"}
                     </Text>
                 </View>
@@ -146,28 +135,28 @@ export default function ShopDetails() {
 
                 {/* Info Cards Row */}
                 <View style={styles.infoRow}>
-                    <View style={styles.infoCard}>
-                        <Ionicons name="time-outline" size={18} color="#FE8C00" />
-                        <Text style={styles.infoCardLabel}>Hours</Text>
-                        <Text style={styles.infoCardValue}>{shop.timein}</Text>
-                        <Text style={styles.infoCardValue}>{shop.timeout}</Text>
+                    <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
+                        <Ionicons name="time-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.infoCardLabel, { color: colors.textMuted }]}>Hours</Text>
+                        <Text style={[styles.infoCardValue, { color: colors.text }]}>{shop.timein}</Text>
+                        <Text style={[styles.infoCardValue, { color: colors.text }]}>{shop.timeout}</Text>
                     </View>
-                    <View style={styles.infoCard}>
+                    <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
                         <Ionicons name="call-outline" size={18} color="#6366F1" />
-                        <Text style={styles.infoCardLabel}>Mobile</Text>
-                        <Text style={styles.infoCardValue} numberOfLines={1}>{shop.mobilenumber || "N/A"}</Text>
+                        <Text style={[styles.infoCardLabel, { color: colors.textMuted }]}>Mobile</Text>
+                        <Text style={[styles.infoCardValue, { color: colors.text }]} numberOfLines={1}>{shop.mobilenumber || "N/A"}</Text>
                     </View>
-                    <View style={styles.infoCard}>
-                        <Ionicons name="pricetag-outline" size={18} color="#10B981" />
-                        <Text style={styles.infoCardLabel}>Rate</Text>
-                        <Text style={styles.infoCardValue}>₹{shop.price}</Text>
-                        <Text style={styles.infoCardSub}>/min</Text>
+                    <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
+                        <Ionicons name="pricetag-outline" size={18} color={colors.success} />
+                        <Text style={[styles.infoCardLabel, { color: colors.textMuted }]}>Rate</Text>
+                        <Text style={[styles.infoCardValue, { color: colors.text }]}>₹{shopPrice}</Text>
+                        <Text style={styles.infoCardSub}>/ slot</Text>
                     </View>
                 </View>
 
                 {/* Map */}
-                <View style={styles.mapCard}>
-                    <Text style={styles.cardTitle}>📍 Location & Route</Text>
+                <View style={[styles.mapCard, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>📍 Location & Route</Text>
                     <View style={styles.mapWrapper}>
                         <MapView
                             style={{ flex: 1 }}
@@ -192,55 +181,79 @@ export default function ShopDetails() {
                                 destination={{ latitude: shop.latitude, longitude: shop.longitude }}
                                 apikey={GOOGLE_MAPS_APIKEY}
                                 strokeWidth={4}
-                                strokeColor="#FE8C00"
+                                strokeColor={colors.primary}
                             />
                         </MapView>
                     </View>
-                    <Text style={styles.addressText}>{shop.address}</Text>
+                    <Text style={[styles.addressText, { color: colors.textMuted }]}>{shop.address}</Text>
                 </View>
 
-                {/* Time Picker */}
-                <View style={styles.timePickerCard}>
-                    <Text style={styles.cardTitle}>⏱ Select Your Time</Text>
-                    <View style={{ marginTop: 8 }}>
-                        {/* Start Time Adjuster */}
-                        <View style={styles.adjusterRow}>
-                            <Text style={styles.adjusterLabel}>START TIME</Text>
-                            <View style={styles.adjusterControls}>
-                                <TouchableOpacity onPress={() => adjustTime('start', -15)} style={styles.adjustBtn} activeOpacity={0.6}>
-                                    <Ionicons name="remove" size={20} color="#374151" />
+                {/* Date & Slot Picker */}
+                <View style={[styles.timePickerCard, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>📅 Select Date & Time</Text>
+                    
+                    {/* Date Selector */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 16 }}>
+                        {next7Days.map((d, idx) => {
+                            const isSelected = selectedDate === d.dateStr;
+                            return (
+                                <TouchableOpacity
+                                    key={idx}
+                                    onPress={() => setSelectedDate(d.dateStr)}
+                                    style={[
+                                        styles.dateChip,
+                                        { backgroundColor: isSelected ? colors.primary : colors.background }
+                                    ]}
+                                >
+                                    <Text style={[styles.dateChipDayName, { color: isSelected ? 'rgba(255,255,255,0.85)' : colors.textMuted }]}>{d.dayName}</Text>
+                                    <Text style={[styles.dateChipDayNum, { color: isSelected ? 'white' : colors.text }]}>{d.dayNum}</Text>
                                 </TouchableOpacity>
-                                <View style={styles.adjusterValueBox}>
-                                    <Text style={styles.adjusterValueText}>{startTimeStr}</Text>
-                                </View>
-                                <TouchableOpacity onPress={() => adjustTime('start', 15)} style={styles.adjustBtn} activeOpacity={0.6}>
-                                    <Ionicons name="add" size={20} color="#374151" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+                            );
+                        })}
+                    </ScrollView>
 
-                        {/* End Time Adjuster */}
-                        <View style={[styles.adjusterRow, { marginTop: 16 }]}>
-                            <Text style={styles.adjusterLabel}>END TIME</Text>
-                            <View style={styles.adjusterControls}>
-                                <TouchableOpacity onPress={() => adjustTime('end', -15)} style={styles.adjustBtn} activeOpacity={0.6}>
-                                    <Ionicons name="remove" size={20} color="#374151" />
-                                </TouchableOpacity>
-                                <View style={styles.adjusterValueBox}>
-                                    <Text style={styles.adjusterValueText}>{endTimeStr}</Text>
-                                </View>
-                                <TouchableOpacity onPress={() => adjustTime('end', 15)} style={styles.adjustBtn} activeOpacity={0.6}>
-                                    <Ionicons name="add" size={20} color="#374151" />
-                                </TouchableOpacity>
-                            </View>
+                    {/* Slots Grid */}
+                    {isLoadingSlots ? (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <ActivityIndicator size="small" color={colors.primary} />
                         </View>
-                    </View>
+                    ) : slots.length === 0 ? (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: colors.textMuted }}>No slots available for this date.</Text>
+                        </View>
+                    ) : (
+                        <View style={styles.slotsGrid}>
+                            {slots.map((slot: any, idx) => {
+                                const isSelected = selectedSlot?.startTime === slot.startTime;
+                                return (
+                                    <TouchableOpacity
+                                        key={idx}
+                                        disabled={slot.isBooked}
+                                        onPress={() => setSelectedSlot(slot)}
+                                        style={[
+                                            styles.slotChip,
+                                            slot.isBooked && styles.slotChipBooked,
+                                            isSelected && styles.slotChipSelected
+                                        ]}
+                                    >
+                                        <Text style={[
+                                            styles.slotChipText,
+                                            slot.isBooked && styles.slotChipTextBooked,
+                                            isSelected && styles.slotChipTextSelected
+                                        ]}>
+                                            {slot.time}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
                 </View>
 
                 {/* About */}
-                <View style={styles.aboutCard}>
-                    <Text style={styles.cardTitle}>ℹ About</Text>
-                    <Text style={styles.aboutText}>
+                <View style={[styles.aboutCard, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>ℹ About</Text>
+                    <Text style={[styles.aboutText, { color: colors.textMuted }]}>
                         Book any available time slot with {shop.occupation || "this service provider"}.
                         Pay only for the time you use. No hidden charges.
                     </Text>
@@ -251,14 +264,14 @@ export default function ShopDetails() {
             </ScrollView>
 
             {/* Sticky Book Button */}
-            <View style={styles.stickyBottom}>
+            <View style={[styles.stickyBottom, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <View style={styles.stickyPriceInfo}>
-                    <Text style={styles.stickyPriceLabel}>Total Value</Text>
-                    <Text style={styles.stickyPrice}>₹{Math.max(0, totalPrice).toLocaleString()}</Text>
-                    <Text style={styles.stickyPriceDuration}>for {timeDifference} min selection</Text>
+                    <Text style={[styles.stickyPriceLabel, { color: colors.textMuted }]}>Total Value</Text>
+                    <Text style={[styles.stickyPrice, { color: colors.text }]}>₹{Math.max(0, totalPrice).toLocaleString()}</Text>
+                    <Text style={[styles.stickyPriceDuration, { color: colors.textMuted }]}>for {durationMins} min session</Text>
                 </View>
-                <TouchableOpacity onPress={handleBooking} activeOpacity={0.85} style={styles.bookBtnWrapper}>
-                    <LinearGradient colors={['#FF8C00', '#FF5F00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtn}>
+                <TouchableOpacity onPress={handleBooking} activeOpacity={0.85} style={[styles.bookBtnWrapper, { shadowColor: colors.primary }]} disabled={!selectedSlot}>
+                    <LinearGradient colors={selectedSlot ? [colors.primary, colors.headerGradientEnd] : ['#D1D5DB', '#9CA3AF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bookBtn}>
                         <Text style={styles.bookBtnText}>Book Appointment</Text>
                         <Ionicons name="arrow-forward" size={18} color="white" />
                     </LinearGradient>
@@ -269,19 +282,18 @@ export default function ShopDetails() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#F3F4F6' },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' },
+    safeArea: { flex: 1 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     emptyIcon: { fontSize: 52, marginBottom: 16 },
-    emptyTitle: { fontSize: 20, fontWeight: '700', color: '#374151' },
-    goBackBtn: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 28, backgroundColor: '#FE8C00', borderRadius: 14 },
+    emptyTitle: { fontSize: 20, fontWeight: '700' },
+    goBackBtn: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 28, borderRadius: 14 },
     goBackText: { color: 'white', fontWeight: '700' },
     topBar: {
         flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16,
-        paddingVertical: 12, backgroundColor: 'white',
-        borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+        paddingVertical: 12, borderBottomWidth: 1,
     },
     backBtn: {
-        width: 38, height: 38, borderRadius: 19, backgroundColor: '#F3F4F6',
+        width: 38, height: 38, borderRadius: 19,
         alignItems: 'center', justifyContent: 'center', marginRight: 12,
     },
     locationInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
@@ -302,56 +314,65 @@ const styles = StyleSheet.create({
     shopSpec: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 },
     infoRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 12 },
     infoCard: {
-        flex: 1, backgroundColor: 'white', borderRadius: 16, padding: 14, alignItems: 'center',
+        flex: 1, borderRadius: 16, padding: 14, alignItems: 'center',
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
     },
-    infoCardLabel: { fontSize: 10, color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6, marginBottom: 4 },
-    infoCardValue: { fontSize: 13, color: '#111827', fontWeight: '700', textAlign: 'center' },
-    infoCardSub: { fontSize: 10, color: '#9CA3AF' },
+    infoCardLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6, marginBottom: 4 },
+    infoCardValue: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+    infoCardSub: { fontSize: 10 },
     mapCard: {
-        backgroundColor: 'white', borderRadius: 20, marginHorizontal: 16, marginTop: 12,
+        borderRadius: 20, marginHorizontal: 16, marginTop: 12,
         padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     },
-    cardTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 14 },
+    cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 14 },
     mapWrapper: { height: 180, borderRadius: 14, overflow: 'hidden', marginBottom: 12 },
-    shopMarker: { padding: 3, backgroundColor: 'white', borderRadius: 25, borderWidth: 2, borderColor: '#FE8C00' },
+    shopMarker: { padding: 3, backgroundColor: 'white', borderRadius: 25, borderWidth: 2, borderColor: '#1877F2' },
     shopMarkerImage: { width: 40, height: 40, borderRadius: 20 },
-    addressText: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
+    addressText: { fontSize: 13, lineHeight: 18 },
     timePickerCard: {
-        backgroundColor: 'white', borderRadius: 20, marginHorizontal: 16, marginTop: 12,
+        borderRadius: 20, marginHorizontal: 16, marginTop: 12,
         padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     },
     timeDisplay: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' },
     timeChip: { backgroundColor: '#F8F9FA', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, alignItems: 'center', minWidth: 72 },
-    timeChipLabel: { fontSize: 9, color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-    timeChipValue: { fontSize: 14, color: '#111827', fontWeight: '800', marginTop: 2 },
+    timeChipLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    timeChipValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
     timeArrow: { paddingHorizontal: 2 },
     aboutCard: {
-        backgroundColor: 'white', borderRadius: 20, marginHorizontal: 16, marginTop: 12,
+        borderRadius: 20, marginHorizontal: 16, marginTop: 12,
         padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     },
-    aboutText: { fontSize: 14, color: '#6B7280', lineHeight: 22 },
+    aboutText: { fontSize: 14, lineHeight: 22 },
     stickyBottom: {
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        backgroundColor: 'white', paddingHorizontal: 16, paddingVertical: 14,
-        borderTopWidth: 1, borderTopColor: '#F3F4F6',
+        paddingHorizontal: 16, paddingVertical: 14,
+        borderTopWidth: 1,
         flexDirection: 'row', alignItems: 'center', gap: 12,
         shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 12,
     },
     stickyPriceInfo: { flex: 1 },
-    stickyPriceLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase' },
-    stickyPrice: { fontSize: 24, fontWeight: '800', color: '#111827' },
-    stickyPriceDuration: { fontSize: 11, color: '#9CA3AF' },
-    bookBtnWrapper: { flex: 2, borderRadius: 16, overflow: 'hidden', shadowColor: '#FF8C00', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
+    stickyPriceLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
+    stickyPrice: { fontSize: 24, fontWeight: '800' },
+    stickyPriceDuration: { fontSize: 11 },
+    bookBtnWrapper: { flex: 2, borderRadius: 16, overflow: 'hidden', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
     bookBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
     bookBtnText: { color: 'white', fontSize: 15, fontWeight: '800' },
     
-    // Adjuster Styles
-    adjusterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    adjusterLabel: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5 },
-    adjusterControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    adjustBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-    adjusterValueBox: { backgroundColor: 'white', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 100, alignItems: 'center' },
-    adjusterValueText: { fontSize: 15, fontWeight: '700', color: '#111827' },
+    // Grid & Slot Styles
+    dateChip: {
+        paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', minWidth: 60,
+    },
+    dateChipSelected: {},
+    dateChipDayName: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 4 },
+    dateChipDayNum: { fontSize: 16, fontWeight: '800' },
+    slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
+    slotChip: {
+        flexBasis: '30%', paddingVertical: 12, borderRadius: 10, backgroundColor: '#E0F2FE', alignItems: 'center', borderWidth: 1, borderColor: '#BAE6FD'
+    },
+    slotChipBooked: { backgroundColor: '#FEE2E2', borderColor: '#FECACA', opacity: 0.6 },
+    slotChipSelected: { backgroundColor: '#1877F2', borderColor: '#1877F2' },
+    slotChipText: { fontSize: 13, fontWeight: '700', color: '#0369A1' },
+    slotChipTextBooked: { color: '#EF4444', textDecorationLine: 'line-through' },
+    slotChipTextSelected: { color: 'white' },
 });
 

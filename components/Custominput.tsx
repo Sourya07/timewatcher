@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ViewStyle } from 'react-native';
+import { useThemeStore } from '@/Store/themeStore';
 
 interface CustomInputProps {
     placeholder?: string;
@@ -27,11 +28,25 @@ const Custominput = ({
     editable = true,
 }: CustomInputProps) => {
     const [isFocused, setIsFocused] = useState(false);
+    const { colors } = useThemeStore();
 
     return (
         <View style={[styles.container, containerStyle]}>
-            <Text style={styles.label}>{label}</Text>
-            <View style={[styles.inputWrapper, isFocused && styles.inputWrapperFocused]}>
+            <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+            <View
+                style={[
+                    styles.inputWrapper,
+                    {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                    },
+                    isFocused && {
+                        borderColor: colors.primary,
+                        backgroundColor: colors.background,
+                        shadowColor: colors.primary,
+                    },
+                ]}
+            >
                 <TextInput
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -42,8 +57,12 @@ const Custominput = ({
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     placeholder={placeholder}
-                    placeholderTextColor="#BDBDBD"
-                    style={[styles.input, multiline && { height: 80, textAlignVertical: 'top' }]}
+                    placeholderTextColor={colors.textMuted}
+                    style={[
+                        styles.input,
+                        { color: colors.text },
+                        multiline && { height: 80, textAlignVertical: 'top' },
+                    ]}
                     multiline={multiline}
                     editable={editable}
                 />

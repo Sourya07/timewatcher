@@ -13,12 +13,14 @@ import { AntDesign, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useShopStore, Shop } from "@/Store/shopstore";
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
+import { useThemeStore } from "@/Store/themeStore";
 
 export default function ShopByName() {
     const router = useRouter();
     // Dynamic route file is [Shopfind].tsx → Expo Router uses 'Shopfind' as the param key
     const { Shopfind: name } = useLocalSearchParams<{ Shopfind: string }>();
     const { getShopByname, fetchShops, shops, loading } = useShopStore();
+    const { colors } = useThemeStore();
     const [foundShops, setFoundShops] = useState<Shop[]>([]);
 
     useEffect(() => {
@@ -39,31 +41,54 @@ export default function ShopByName() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 justify-center items-center bg-white">
-                <ActivityIndicator size="large" color="#FE8C00" />
-                <Text className="mt-4 text-gray-400 font-semibold">Loading shops...</Text>
+            <SafeAreaView
+                className="flex-1 justify-center items-center"
+                style={{ backgroundColor: colors.background }}
+            >
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text className="mt-4 font-semibold" style={{ color: colors.textMuted }}>
+                    Loading shops...
+                </Text>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-white">
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
             <ScrollView>
                 {/* Header */}
                 <View className="px-5 py-4 pt-12">
-                    <View className="flex-row justify-between items-center bg-white shadow-xl shadow-black/5 p-4 rounded-3xl border border-gray-100">
+                    <View
+                        className="flex-row justify-between items-center shadow-xl shadow-black/5 p-4 rounded-3xl border"
+                        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    >
                         <View className="flex-row items-center">
                             <TouchableOpacity onPress={() => router.back()} className="bg-gray-50 p-3 rounded-full mr-3">
-                                <Ionicons name="arrow-back" size={20} color="#111827" />
+                                <Ionicons name="arrow-back" size={20} color={colors.text} />
                             </TouchableOpacity>
                             <View>
-                                <Text className="text-2xl font-black text-[#1a1a1a] tracking-tight">{name}</Text>
-                                <Text className="text-gray-500 text-xs font-semibold mt-0.5">3.8 km · Gaur City 1</Text>
+                                <Text
+                                    className="text-2xl font-black tracking-tight"
+                                    style={{ color: colors.text }}
+                                >
+                                    {name}
+                                </Text>
+                                <Text
+                                    className="text-xs font-semibold mt-0.5"
+                                    style={{ color: colors.textMuted }}
+                                >
+                                    3.8 km · Gaur City 1
+                                </Text>
                             </View>
                         </View>
-                        <View className="bg-orange-100 rounded-full px-4 py-2 flex-row flex-center">
-                            <AntDesign name="star" size={14} color="#FE8C00" />
-                            <Text className="text-[#FE8C00] font-bold ml-1">4.4</Text>
+                        <View
+                            className="rounded-full px-4 py-2 flex-row flex-center"
+                            style={{ backgroundColor: colors.background }}
+                        >
+                            <AntDesign name="star" size={14} color={colors.primary} />
+                            <Text className="font-bold ml-1" style={{ color: colors.primary }}>
+                                4.4
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -85,15 +110,23 @@ export default function ShopByName() {
 
                 {/* Template Categories */}
                 <View className="px-5 py-4">
-                    <Text className="text-xl font-bold tracking-tight text-[#1a1a1a] mb-4">Categories</Text>
+                    <Text
+                        className="text-xl font-bold tracking-tight mb-4"
+                        style={{ color: colors.text }}
+                    >
+                        Categories
+                    </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {["Doctors", "Advocate", "Courier", "Barber"].map((cat, idx) => (
                             <TouchableOpacity
                                 key={idx}
                                 className="mr-4 items-center"
                             >
-                                <View className="w-16 h-16 rounded-3xl bg-orange-50 justify-center items-center shadow-sm shadow-orange-100/50 border border-orange-100">
-                                    <Ionicons name="medkit" size={24} color="#FE8C00" />
+                                <View
+                                    className="w-16 h-16 rounded-3xl justify-center items-center shadow-sm"
+                                    style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+                                >
+                                    <Ionicons name="medkit" size={24} color={colors.primary} />
                                 </View>
                                 <Text className="mt-2 text-xs font-bold text-gray-700">{cat}</Text>
                             </TouchableOpacity>
@@ -103,7 +136,12 @@ export default function ShopByName() {
 
                 {/* Shops Section */}
                 <View className="px-5 py-4 pb-32">
-                    <Text className="text-xl font-bold tracking-tight text-[#1a1a1a] mb-4">Available {name}s</Text>
+                    <Text
+                        className="text-xl font-bold tracking-tight mb-4"
+                        style={{ color: colors.text }}
+                    >
+                        Available {name}s
+                    </Text>
                     {foundShops.length === 0 && !loading ? (
                         <View className="items-center py-16">
                             <Ionicons name="storefront-outline" size={52} color="#D1D5DB" />
@@ -114,7 +152,8 @@ export default function ShopByName() {
                         <TouchableOpacity
                             key={shop.id}
                             onPress={() => router.push(`/shops/${shop.id}` as any)}
-                            className="mb-6 bg-white rounded-3xl shadow-xl shadow-black/10 border border-gray-100 overflow-hidden active:scale-[0.98]"
+                            className="mb-6 rounded-3xl shadow-xl shadow-black/10 border overflow-hidden active:scale-[0.98]"
+                            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
                         >
                             {shop.image ? (
                                 <Image
@@ -126,11 +165,29 @@ export default function ShopByName() {
                             <View className="p-5">
                                 <View className="flex-row justify-between items-start">
                                     <View>
-                                        <Text className="text-xl font-black text-[#1a1a1a] tracking-tight">{shop.name}</Text>
-                                        <Text className="text-gray-500 font-semibold text-sm mt-0.5">{shop.speclization}</Text>
+                                    <Text
+                                        className="text-xl font-black tracking-tight"
+                                        style={{ color: colors.text }}
+                                    >
+                                        {shop.name}
+                                    </Text>
+                                    <Text
+                                        className="font-semibold text-sm mt-0.5"
+                                        style={{ color: colors.textMuted }}
+                                    >
+                                        {shop.speclization}
+                                    </Text>
                                     </View>
-                                    <View className="bg-orange-50 px-3 py-1.5 rounded-full">
-                                        <Text className="text-[#FE8C00] font-bold text-sm">₹{shop.price}/m</Text>
+                                    <View
+                                        className="px-3 py-1.5 rounded-full"
+                                        style={{ backgroundColor: colors.background }}
+                                    >
+                                        <Text
+                                            className="font-bold text-sm"
+                                            style={{ color: colors.primary }}
+                                        >
+                                            ₹{shop.price}/m
+                                        </Text>
                                     </View>
                                 </View>
                                 <View className="mt-4 flex-row items-center">
@@ -146,13 +203,17 @@ export default function ShopByName() {
             
             {/* Bottom Search + Menu */}
             <View className="absolute left-5 right-5 bottom-8 flex-row items-center justify-between">
-                <View className="flex-row items-center bg-white shadow-2xl shadow-black/30 border border-gray-100 flex-1 rounded-full px-5 py-4 mr-3">
-                    <Ionicons name="search" size={20} color="#9ca3af" />
+                <View
+                    className="flex-row items-center shadow-2xl shadow-black/30 border flex-1 rounded-full px-5 py-4 mr-3"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                >
+                    <Ionicons name="search" size={20} color={colors.textMuted} />
                     <TextInput
                         placeholder="Search for a specialist..."
-                        className="ml-3 flex-1 text-[#1a1a1a] font-semibold"
-                        placeholderTextColor="#9ca3af"
-                        selectionColor="#FE8C00"
+                        className="ml-3 flex-1 font-semibold"
+                        placeholderTextColor={colors.textMuted}
+                        selectionColor={colors.primary}
+                        style={{ color: colors.text }}
                     />
                 </View>
                 <TouchableOpacity className="bg-[#1a1a1a] shadow-2xl shadow-black/40 p-4 rounded-full flex-center size-14">

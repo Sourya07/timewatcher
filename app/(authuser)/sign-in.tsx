@@ -5,8 +5,10 @@ import CustomButton from '@/components/Custombutton';
 import { useState } from 'react';
 import { userSignin } from '@/constants/userApi';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeStore } from '@/Store/themeStore';
 
 const UserSignInScreen = () => {
+    const { colors } = useThemeStore();
     const [isSubmitting, setSubmitting] = useState(false);
     const [showPass, setShowPass] = useState(false);
     const [form, setForm] = useState({ email: '', password: '' });
@@ -35,8 +37,8 @@ const UserSignInScreen = () => {
 
     return (
         <View>
-            <Text style={styles.title}>Welcome back 👋</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome back 👋</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>Sign in to continue</Text>
 
             <View style={styles.form}>
                 <Custominput
@@ -62,7 +64,7 @@ const UserSignInScreen = () => {
                 </View>
 
                 <TouchableOpacity style={styles.forgotBtn}>
-                    <Text style={styles.forgotText}>Forgot password?</Text>
+                    <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
                 </TouchableOpacity>
 
                 <View style={{ marginTop: 28 }}>
@@ -75,22 +77,22 @@ const UserSignInScreen = () => {
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account? </Text>
-                <Link href="./sign-up" style={styles.footerLink}>Sign Up</Link>
+                <Text style={[styles.footerText, { color: colors.textMuted }]}>Don't have an account? </Text>
+                <Link href="./sign-up" style={[styles.footerLink, { color: colors.primary }]}>Sign Up</Link>
             </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    title: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-    subtitle: { fontSize: 15, color: '#6B7280', marginTop: 6, marginBottom: 32 },
+    title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+    subtitle: { fontSize: 15, marginTop: 6, marginBottom: 32 },
     form: { gap: 0 },
     forgotBtn: { alignSelf: 'flex-end', marginTop: 12 },
-    forgotText: { color: '#FE8C00', fontSize: 13, fontWeight: '600' },
+    forgotText: { fontSize: 13, fontWeight: '600' },
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 36 },
-    footerText: { color: '#6B7280', fontSize: 14 },
-    footerLink: { color: '#FE8C00', fontSize: 14, fontWeight: '700' },
+    footerText: { fontSize: 14 },
+    footerLink: { fontSize: 14, fontWeight: '700' },
 });
 
 export default UserSignInScreen;

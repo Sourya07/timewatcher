@@ -4,11 +4,17 @@ import apiClient from './axiosInstance';
 
 export const createBooking = async (data: {
     shopId: number;
-    date: string;
-    time: string;
-    [key: string]: any;
+    duration: number;
+    price: number;
+    bookingStart: string;
+    bookingEnd: string;
 }) => {
     const res = await apiClient.post('/api/v1/booking/', data);
+    return res.data;
+};
+
+export const getShopSlots = async (shopId: number, date: string) => {
+    const res = await apiClient.get(`/api/v1/booking/slots/${shopId}?date=${date}`);
     return res.data;
 };
 

@@ -29,105 +29,166 @@ function minutesTo12h(totalMinutes: number) {
     return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 }
 
-router.post('/', verifyToken, async (req, res) => {
+// GET dynamically generated slots for a shop on a specific date
+router.get('/slots/:shopId', async (req, res) => {
     try {
-        const { shopId, duration, price, startTime: startStr, endTime: endStr } = req.body;
-        const userId = Number(req.user?.id);
+        const shopId = Number(req.params.shopId);
+        const { date } = req.query; // YYYY-MM-DD format expected
 
-        // 1️⃣ Get shop's opening hours
+        if (!date || typeof date !== 'string') {
+            return res.status(400).json({ message: "date parameter (YYYY-MM-DD) is required" });
+        }
+
         const shop = await prisma.adminShop.findUnique({
             where: { id: shopId },
-            select: { timein: true, timeout: true }
+            select: { timein: true, timeout: true, isOpen: true, slotDuration: true }
         });
 
         if (!shop) {
             return res.status(404).json({ message: "Shop not found" });
         }
 
-        // Convert opening/closing times from DB to minutes
+        if (!shop.isOpen) {
+            return res.status(200).json({ date, slots: [] });
+        }
+
         const shopOpen = time12hToMinutes(shop.timein);
         const shopClose = time12hToMinutes(shop.timeout);
 
-        // 2️⃣ Convert booking request times (for checks)
-        const startMinutes = time12hToMinutes(startStr);
-        const endMinutes = time12hToMinutes(endStr);
+        // Fetch all non-cancelled bookings for this shop on this date
+        const targetDate = new Date(date);
+        targetDate.setUTCHours(0, 0, 0, 0);
 
-        if (endMinutes <= startMinutes) {
-            return res.status(400).json({ message: "End time must be after start time" });
-        }
+        const nextDay = new Date(targetDate);
+        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
 
-        // 3️⃣ Check if within shop's opening hours
-        if (startMinutes < shopOpen || endMinutes > shopClose) {
-            return res.status(400).json({
-                message: `Shop is open from ${minutesTo12h(shopOpen)} to ${minutesTo12h(shopClose)}`
+        const bookingsOnDate = await prisma.booking.findMany({
+            where: {
+                shopId,
+                status: { not: "cancelled" },
+                startTime: {
+                    gte: targetDate,
+                    lt: nextDay
+                }
+            },
+            select: { startTime: true, endTime: true }
+        });
+
+        // Generate exact-minute slots governed by shop's custom slotDuration
+        const slots = [];
+        const SLOT_DURATION_MINS = shop.slotDuration || 30;
+
+        for (let currentTime = shopOpen; currentTime + SLOT_DURATION_MINS <= shopClose; currentTime += SLOT_DURATION_MINS) {
+            const slotStart = new Date(targetDate);
+            slotStart.setUTCMinutes(slotStart.getUTCMinutes() + currentTime);
+
+            const slotEnd = new Date(slotStart);
+            slotEnd.setUTCMinutes(slotEnd.getUTCMinutes() + SLOT_DURATION_MINS);
+
+            const now = new Date();
+
+            // Check if slot overlaps with any existing booking or is in the past
+            const isPast = slotStart < now;
+            const isBooked = isPast || bookingsOnDate.some(b => {
+                // A slot overlaps if (existingStart < slotEnd) AND (existingEnd > slotStart)
+                return b.startTime.getTime() < slotEnd.getTime() && b.endTime.getTime() > slotStart.getTime();
+            });
+
+            slots.push({
+                time: minutesTo12h(currentTime),
+                startTime: slotStart.toISOString(),
+                endTime: slotEnd.toISOString(),
+                isBooked
             });
         }
 
-        // 4️⃣ Check for overlapping bookings
+        res.status(200).json({ date, slots });
+    } catch (error: any) {
+        console.error("Error fetching slots:", error);
+        res.status(500).json({ message: "Failed to fetch slots", error: error.message });
+    }
+});
+
+router.post('/', verifyToken, async (req, res) => {
+    try {
+        const { shopId, duration, price, bookingStart, bookingEnd } = req.body;
+        const userId = Number(req.user?.id);
+
+        if (!bookingStart || !bookingEnd) {
+            return res.status(400).json({ message: "bookingStart and bookingEnd are required" });
+        }
+
+        const startDt = new Date(bookingStart);
+        const endDt = new Date(bookingEnd);
+        const now = new Date();
+
+        if (startDt < now) {
+            return res.status(400).json({ message: "Cannot book a time slot in the past." });
+        }
+
+        if (endDt <= startDt) {
+            return res.status(400).json({ message: "End time must be after start time" });
+        }
+
+        // 1️⃣ Get shop's details
+        const shop = await prisma.adminShop.findUnique({
+            where: { id: shopId },
+            include: { Admin: { select: { email: true } } }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        // 2️⃣ Check for overlapping bookings
+        // A booking overlaps if (existingStart < newEnd) AND (existingEnd > newStart)
+        // Also it must be "booked: true" or "status != cancelled"
         const conflictingBooking = await prisma.booking.findFirst({
             where: {
                 shopId,
-                booked: true,
+                status: { not: "cancelled" }, // any active/upcoming booking
                 AND: [
-                    {
-                        // existing start < new end
-                        startTime: { lt: endStr }
-                    },
-                    {
-                        // existing end > new start
-                        endTime: { gt: startStr }
-                    }
+                    { startTime: { lt: endDt } },
+                    { endTime: { gt: startDt } }
                 ]
             }
         });
 
         if (conflictingBooking) {
             return res.status(400).json({
-                message: "This time slot is already booked for this shop."
+                message: "This exact time slot is already booked. Please refresh the page and select an available slot.",
+                code: "SLOT_UNAVAILABLE"
             });
         }
 
-        // 5️⃣ Create booking (store original strings)
+        // 3️⃣ Create booking
         const booking = await prisma.booking.create({
             data: {
                 shopId,
                 duration,
                 price,
-                booked: true,
-                startTime: startStr,
-                endTime: endStr,
+                booked: true, // Keep for legacy until frontend transitions fully
+                status: "upcoming",
+                startTime: startDt,
+                endTime: endDt,
                 userId
             },
             include: {
                 shop: {
-                    include: {
-                        Admin: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true // no password
-                            }
-                        }
+                    select: {
+                        occupation: true,
+                        Admin: { select: { name: true, email: true } }
                     }
                 },
                 user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        isVerified: true,
-                        createdAt: true
-                    }
+                    select: { name: true, email: true }
                 }
             }
         });
 
-        // Remove sensitive fields
-
-
-        // 6️⃣ Notify admin (placeholder)
+        // 4️⃣ Optional: Notify admin
         const adminEmail = booking.shop.Admin.email;
-        console.log(`📢 Notify admin ${adminEmail}: ${booking.user.name} booked from ${startStr} to ${endStr}`);
+        console.log(`📢 Notify admin ${adminEmail}: ${booking.user.name} booked from ${bookingStart} to ${bookingEnd}`);
 
         res.status(201).json({
             message: "Booking created successfully",

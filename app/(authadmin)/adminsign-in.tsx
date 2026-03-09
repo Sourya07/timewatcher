@@ -6,8 +6,10 @@ import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '@/constants/axiosInstance';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeStore } from '@/Store/themeStore';
 
 const Signin = () => {
+    const { colors } = useThemeStore();
     const [isSubmitting, setSubmitting] = useState(false);
     const [showPass, setShowPass] = useState(false);
     const [form, setForm] = useState({ email: '', password: '' });
@@ -54,8 +56,8 @@ const Signin = () => {
 
     return (
         <View>
-            <Text style={styles.title}>Seller Sign In 🔑</Text>
-            <Text style={styles.subtitle}>Access your dashboard</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Seller Sign In 🔑</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>Access your dashboard</Text>
 
             <View style={styles.form}>
                 <Custominput
@@ -90,20 +92,22 @@ const Signin = () => {
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.footerText}>New seller? </Text>
-                <Link href="/adminsign-up" style={styles.footerLink}>Create Account</Link>
+                <Text style={[styles.footerText, { color: colors.textMuted }]}>New seller? </Text>
+                <Link href="/adminsign-up" style={[styles.footerLink, { color: colors.primary }]}>
+                    Create Account
+                </Link>
             </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    title: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-    subtitle: { fontSize: 15, color: '#6B7280', marginTop: 6, marginBottom: 32 },
+    title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+    subtitle: { fontSize: 15, marginTop: 6, marginBottom: 32 },
     form: {},
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 36 },
-    footerText: { color: '#6B7280', fontSize: 14 },
-    footerLink: { color: '#0f3460', fontSize: 14, fontWeight: '700' },
+    footerText: { fontSize: 14 },
+    footerLink: { fontSize: 14, fontWeight: '700' },
 });
 
 export default Signin;

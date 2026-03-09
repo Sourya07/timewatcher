@@ -6,17 +6,19 @@ import { useShopStore } from '@/Store/shopstore';
 import { images, offers } from "@/constants";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeStore } from '@/Store/themeStore';
 import cn from 'clsx';
 
 export default function Index() {
     const { shops, fetchShops, loading } = useShopStore();
+    const { colors } = useThemeStore();
 
     useEffect(() => {
         if (shops.length === 0) fetchShops();
     }, [shops.length]);
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
             <FlatList
                 data={offers}
                 renderItem={({ item, index }) => {
@@ -60,20 +62,20 @@ export default function Index() {
                     <View style={styles.header}>
                         <View>
                             <Text style={styles.greeting}>Good day 👋</Text>
-                            <Text style={styles.appName}>TimeExchange</Text>
+                            <Text style={[styles.appName, { color: colors.text }]}>TimeExchange</Text>
                             <Text style={styles.subtitle}>Book the services you need</Text>
                         </View>
 
                         <TouchableOpacity
-                            style={styles.sellerBtn}
+                            style={[styles.sellerBtn, { borderColor: colors.primary, backgroundColor: colors.surface }]}
                             onPress={() => router.replace('/(authadmin)/adminsign-in')}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="storefront-outline" size={14} color="#FE8C00" />
-                            <Text style={styles.sellerBtnText}>Become a Seller</Text>
+                            <Ionicons name="storefront-outline" size={14} color={colors.primary} />
+                            <Text style={[styles.sellerBtnText, { color: colors.primary }]}>Become a Seller</Text>
                         </TouchableOpacity>
 
-                        <Text style={styles.sectionTitle}>Browse Categories</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse Categories</Text>
                     </View>
                 )}
             />
@@ -82,18 +84,16 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
+    safeArea: { flex: 1 },
     listContent: { paddingBottom: 80, paddingHorizontal: 20 },
     header: { marginTop: 8, marginBottom: 20 },
     greeting: { fontSize: 14, color: '#9CA3AF', fontWeight: '500', marginBottom: 2 },
-    appName: { fontSize: 32, fontWeight: '800', color: '#111827', letterSpacing: -1 },
+    appName: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
     subtitle: { fontSize: 14, color: '#6B7280', marginTop: 4, marginBottom: 20 },
     sellerBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#FFF7ED',
-        borderColor: '#FED7AA',
         borderWidth: 1,
         borderRadius: 20,
         paddingHorizontal: 14,
@@ -101,8 +101,8 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         marginBottom: 28,
     },
-    sellerBtnText: { color: '#FE8C00', fontSize: 13, fontWeight: '700' },
-    sectionTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 4 },
+    sellerBtnText: { fontSize: 13, fontWeight: '700' },
+    sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
     card: {
         width: '100%',
         height: 160,

@@ -2,11 +2,12 @@ import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Dimensions, Sty
 import { Slot, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useThemeStore } from '@/Store/themeStore';
 
 const { height } = Dimensions.get('screen');
 
 export default function AuthLayout() {
+    const { colors } = useThemeStore();
     const handleBack = () => {
         if (router.canGoBack()) {
             router.back();
@@ -17,10 +18,14 @@ export default function AuthLayout() {
 
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView style={{ flex: 1, backgroundColor: '#0F0F0F' }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={{ flex: 1, backgroundColor: colors.background }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
                 {/* Hero Gradient Header */}
                 <LinearGradient
-                    colors={['#FF8C00', '#FF6B00', '#FF4500']}
+                    colors={[colors.headerGradientStart, colors.headerGradientEnd]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={[styles.header, { height: height * 0.35 }]}

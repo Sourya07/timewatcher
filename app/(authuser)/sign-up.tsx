@@ -5,8 +5,10 @@ import CustomButton from '@/components/Custombutton';
 import { useState } from 'react';
 import { userSignup } from '@/constants/userApi';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeStore } from '@/Store/themeStore';
 
 const UserSignUpScreen = () => {
+    const { colors } = useThemeStore();
     const [isSubmitting, setSubmitting] = useState(false);
     const [showPass, setShowPass] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -30,8 +32,8 @@ const UserSignUpScreen = () => {
 
     return (
         <View>
-            <Text style={styles.title}>Create account ✨</Text>
-            <Text style={styles.subtitle}>Join TimeWatcher today</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Create account ✨</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>Join TimeWatcher today</Text>
 
             <View style={styles.form}>
                 <Custominput
@@ -73,30 +75,30 @@ const UserSignUpScreen = () => {
                     />
                 </View>
 
-                <Text style={styles.terms}>
+                <Text style={[styles.terms, { color: colors.textMuted }]}>
                     By signing up, you agree to our{' '}
-                    <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                    <Text style={styles.termsLink}>Privacy Policy</Text>
+                    <Text style={[styles.termsLink, { color: colors.primary }]}>Terms of Service</Text> and{' '}
+                    <Text style={[styles.termsLink, { color: colors.primary }]}>Privacy Policy</Text>
                 </Text>
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.footerText}>Already have an account? </Text>
-                <Link href="/sign-in" style={styles.footerLink}>Sign In</Link>
+                <Text style={[styles.footerText, { color: colors.textMuted }]}>Already have an account? </Text>
+                <Link href="/sign-in" style={[styles.footerLink, { color: colors.primary }]}>Sign In</Link>
             </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    title: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-    subtitle: { fontSize: 15, color: '#6B7280', marginTop: 6, marginBottom: 32 },
+    title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+    subtitle: { fontSize: 15, marginTop: 6, marginBottom: 32 },
     form: {},
-    terms: { textAlign: 'center', color: '#9CA3AF', fontSize: 12, marginTop: 20, lineHeight: 18 },
-    termsLink: { color: '#FE8C00', fontWeight: '600' },
+    terms: { textAlign: 'center', fontSize: 12, marginTop: 20, lineHeight: 18 },
+    termsLink: { fontWeight: '600' },
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 36 },
-    footerText: { color: '#6B7280', fontSize: 14 },
-    footerLink: { color: '#FE8C00', fontSize: 14, fontWeight: '700' },
+    footerText: { fontSize: 14 },
+    footerLink: { fontSize: 14, fontWeight: '700' },
 });
 
 export default UserSignUpScreen;
