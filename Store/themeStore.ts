@@ -44,8 +44,8 @@ type ThemeState = {
 const STORAGE_KEY = "theme_preference";
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  isDarkMode: false,
-  colors: Colors.light,
+  isDarkMode: true,
+  colors: Colors.dark,
 
   setDarkMode: (value: boolean) => {
     set({
@@ -83,11 +83,10 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       // fall back to system preference
     }
 
-    const systemScheme = Appearance.getColorScheme();
-    const isDark = systemScheme === "dark";
+    // Default to dark mode if no preference saved
     set({
-      isDarkMode: isDark,
-      colors: isDark ? Colors.dark : Colors.light,
+      isDarkMode: true,
+      colors: Colors.dark,
     });
   },
 }));

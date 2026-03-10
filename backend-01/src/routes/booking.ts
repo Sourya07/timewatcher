@@ -5,16 +5,22 @@ import { verifyToken } from '../middleware/usermiddleware';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Convert "hh:mm AM/PM" → minutes from midnight
+// Convert "hh:mm AM/PM" or "5 AM" → minutes from midnight
 function time12hToMinutes(time?: string) {
     if (!time) return 0;
-    const [timePart, modifier] = time.trim().split(" ");
-    let [hours, minutes] = timePart.split(":").map(Number);
+    const normalized = time.trim().toUpperCase();
+    const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(AM|PM)?$/);
+    
+    if (!match) return 0;
+    
+    let hours = parseInt(match[1]);
+    let minutes = match[2] ? parseInt(match[2]) : 0;
+    const modifier = match[3];
 
-    if (modifier?.toUpperCase() === "PM" && hours !== 12) {
+    if (modifier === "PM" && hours !== 12) {
         hours += 12;
     }
-    if (modifier?.toUpperCase() === "AM" && hours === 12) {
+    if (modifier === "AM" && hours === 12) {
         hours = 0; // midnight case
     }
     return hours * 60 + minutes;
