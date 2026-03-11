@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView, ActivityIndicator, Pressable, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { useShopStore } from '@/Store/shopstore';
+import { useShopStore, ShopService } from '@/Store/shopstore';
 import { useState, useEffect, useCallback } from 'react';
 import MapView, { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
@@ -9,6 +9,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getShopSlots, createBooking } from '@/constants/bookingApi';
 import { useThemeStore } from '@/Store/themeStore';
+import BackButton from '@/components/BackButton';
 
 const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw";
 
@@ -25,9 +26,7 @@ export default function ShopDetails() {
             <SafeAreaView style={styles.centered}>
                 <Text style={styles.emptyIcon}>🏚</Text>
                 <Text style={styles.emptyTitle}>Shop not found</Text>
-                <TouchableOpacity onPress={() => router.back()} style={styles.goBackBtn}>
-                    <Text style={styles.goBackText}>Go Back</Text>
-                </TouchableOpacity>
+                <BackButton style={{ marginTop: 20 }} fallbackRoute="/(tabs)" backgroundColor={colors.primary} iconColor="white" />
             </SafeAreaView>
         );
     }
@@ -38,7 +37,15 @@ export default function ShopDetails() {
     });
     const [slots, setSlots] = useState<any[]>([]);
     const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
+    const [selectedService, setSelectedService] = useState<ShopService | null>(null);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+    // Auto-select first service if available
+    useEffect(() => {
+        if (shop?.services && shop.services.length > 0 && !selectedService) {
+            setSelectedService(shop.services[0]);
+        }
+    }, [shop]);
 
     // Generate next 7 dates
     const next7Days = Array.from({ length: 7 }).map((_, i) => {
@@ -60,8 +67,9 @@ export default function ShopDetails() {
     const fetchSlots = async (dateStr: string) => {
         setIsLoadingSlots(true);
         setSelectedSlot(null);
+        if (!selectedService) return;
         try {
-            const res = await getShopSlots(Number(id), dateStr);
+            const res = await getShopSlots(Number(id), dateStr, selectedService.id);
             setSlots(res.slots || []);
         } catch (error) {
             console.error("Failed to fetch slots", error);
@@ -70,11 +78,15 @@ export default function ShopDetails() {
         }
     };
 
-    const shopPrice = Number(shop?.price || 0);
-    const durationMins = shop?.slotDuration ? Number(shop.slotDuration) : 30;
+    const shopPrice = selectedService ? Number(selectedService.price) : 0;
+    const durationMins = selectedService?.durationMins ? Number(selectedService.durationMins) : 30;
     const totalPrice = shopPrice; // now treated as price per slot directly
 
     const handleBooking = async () => {
+        if (!selectedService) {
+            Alert.alert("No Service Selected", "Please select a service before booking.");
+            return;
+        }
         if (!selectedSlot) {
             Alert.alert("Invalid Duration", "Please select an available time slot.");
             return;
@@ -82,7 +94,7 @@ export default function ShopDetails() {
 
         try {
             await createBooking({
-                shopId: Number(id),
+                shopServiceId: selectedService.id,
                 duration: durationMins,
                 price: totalPrice,
                 bookingStart: selectedSlot.startTime,
@@ -100,9 +112,7 @@ export default function ShopDetails() {
         <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             {/* Top bar */}
             <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.background }]} activeOpacity={0.8}>
-                    <Ionicons name="arrow-back" size={20} color={colors.text} />
-                </TouchableOpacity>
+                <BackButton style={{ marginRight: 12, width: 38, height: 38 }} backgroundColor={colors.background} />
                 <View style={styles.locationInfo}>
                     <Ionicons name="location-sharp" size={14} color={colors.primary} />
                     <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
@@ -148,9 +158,9 @@ export default function ShopDetails() {
                     </View>
                     <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
                         <Ionicons name="pricetag-outline" size={18} color={colors.success} />
-                        <Text style={[styles.infoCardLabel, { color: colors.textMuted }]}>Rate</Text>
-                        <Text style={[styles.infoCardValue, { color: colors.text }]}>₹{shopPrice}</Text>
-                        <Text style={styles.infoCardSub}>/ slot</Text>
+                        <Text style={[styles.infoCardLabel, { color: colors.textMuted }]}>Starting</Text>
+                        <Text style={[styles.infoCardValue, { color: colors.text }]}>₹{shop.services?.[0]?.price || 0}</Text>
+                        <Text style={styles.infoCardSub}>minimum</Text>
                     </View>
                 </View>
 
@@ -187,6 +197,38 @@ export default function ShopDetails() {
                     </View>
                     <Text style={[styles.addressText, { color: colors.textMuted }]}>{shop.address}</Text>
                 </View>
+
+                {/* Services Menu */}
+                {shop.services && shop.services.length > 0 && (
+                    <View style={[styles.servicesCard, { backgroundColor: colors.surface }]}>
+                        <Text style={[styles.cardTitle, { color: colors.text }]}>📋 Select a Service</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 16 }}>
+                            {shop.services.map((svc) => {
+                                const isSelected = selectedService?.id === svc.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={svc.id}
+                                        onPress={() => setSelectedService(svc)}
+                                        style={[
+                                            styles.serviceChip,
+                                            { backgroundColor: isSelected ? colors.primary + '15' : colors.background },
+                                            isSelected && { borderColor: colors.primary }
+                                        ]}
+                                    >
+                                        <View style={styles.serviceIconWrapper}>
+                                            <Ionicons name="checkmark-circle" size={18} color={isSelected ? colors.primary : 'transparent'} />
+                                        </View>
+                                        <Text style={[styles.serviceChipName, { color: colors.text }]}>{svc.name}</Text>
+                                        <Text style={[styles.serviceChipPrice, { color: colors.primary }]}>₹{svc.price}</Text>
+                                        {svc.durationMins && (
+                                            <Text style={[styles.serviceChipMeta, { color: colors.textMuted }]}>{svc.durationMins} mins</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+                    </View>
+                )}
 
                 {/* Date & Slot Picker */}
                 <View style={[styles.timePickerCard, { backgroundColor: colors.surface }]}>
@@ -325,6 +367,18 @@ const styles = StyleSheet.create({
         padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     },
     cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 14 },
+    servicesCard: {
+        borderRadius: 20, marginHorizontal: 16, marginTop: 12, paddingLeft: 16, paddingTop: 16,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    },
+    serviceChip: {
+        padding: 12, borderRadius: 16, borderWidth: 1, borderColor: 'transparent', minWidth: 120,
+        backgroundColor: '#F3F4F6', alignItems: 'flex-start'
+    },
+    serviceIconWrapper: { position: 'absolute', top: 8, right: 8 },
+    serviceChipName: { fontSize: 13, fontWeight: '600', marginBottom: 4, marginTop: 6 },
+    serviceChipPrice: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+    serviceChipMeta: { fontSize: 11, fontWeight: '500' },
     mapWrapper: { height: 180, borderRadius: 14, overflow: 'hidden', marginBottom: 12 },
     shopMarker: { padding: 3, backgroundColor: 'white', borderRadius: 25, borderWidth: 2, borderColor: '#1877F2' },
     shopMarkerImage: { width: 40, height: 40, borderRadius: 20 },

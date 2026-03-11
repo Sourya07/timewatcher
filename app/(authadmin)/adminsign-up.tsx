@@ -12,6 +12,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
+import BackButton from '@/components/BackButton';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -50,7 +51,7 @@ const Signup = () => {
             const res = await apiClient.post('/api/v1/admin/google', { idToken });
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', res.data.token);
-            router.replace('/adminfolder/');
+            router.replace('/adminfolder' as any);
         } catch (error: any) {
             Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
         } finally {
@@ -73,7 +74,7 @@ const Signup = () => {
             const res = await apiClient.post('/api/v1/admin/apple', { idToken: credential.identityToken, name });
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', res.data.token);
-            router.replace('/adminfolder/');
+            router.replace('/adminfolder' as any);
         } catch (e: any) {
             if (e.code !== 'ERR_REQUEST_CANCELED') {
                 Alert.alert('Apple Sign-In Failed', e.message || 'Something went wrong');
@@ -102,6 +103,7 @@ const Signup = () => {
 
     return (
         <View>
+            <BackButton style={{ alignSelf: 'flex-start', marginBottom: 16 }} backgroundColor={colors.surface} />
             <Text style={[styles.title, { color: colors.text }]}>Become a Seller 🚀</Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>Create your seller account</Text>
 

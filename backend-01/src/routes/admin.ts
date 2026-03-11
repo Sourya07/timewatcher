@@ -300,19 +300,28 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
         speclization,
         timein,
         timeout,
-        price,
         isOpen,
-        slotDuration
+        categoryName, // newly added
+        services      // newly added, array of { name, price, durationMins, description }
     } = req.body;
 
     try {
         const adminExists = await prisma.admin.findUnique({
             where: { id: adminId }
         });
-        console.log('Admin found in DB:', adminExists ? `id=${adminExists.id}, email=${adminExists.email}` : 'NOT FOUND');
 
         if (!adminExists) {
             return res.status(404).json({ error: 'Admin not found' });
+        }
+
+        // Find or create Category
+        let categoryId = null;
+        if (categoryName) {
+            let cat = await prisma.category.findUnique({ where: { name: categoryName } });
+            if (!cat) {
+                cat = await prisma.category.create({ data: { name: categoryName } });
+            }
+            categoryId = cat.id;
         }
 
         const newShop = await prisma.adminShop.create({
@@ -326,11 +335,25 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
                 speclization,
                 timein,
                 timeout,
-                price,
                 isOpen: isOpen ?? true,
-                slotDuration: slotDuration ?? 30,
                 Admin: { connect: { id: adminId } },
+                ...(categoryId && { category: { connect: { id: categoryId } } }),
+                // Create nested services
+                ...(services && services.length > 0 && {
+                    services: {
+                        create: services.map((s: any) => ({
+                            name: s.name,
+                            price: Number(s.price),
+                            durationMins: s.durationMins ? Number(s.durationMins) : null,
+                            description: s.description || null
+                        }))
+                    }
+                })
             },
+            include: {
+                services: true,
+                category: true
+            }
         });
 
         return res.status(201).json({ shop: newShop });
@@ -347,6 +370,10 @@ router.get('/adminshops', verifyAdminToken, async (req, res) => {
             where: {
                 AdminId: adminId,
             },
+            include: {
+                services: true,
+                category: true
+            }
         });
 
         return res.status(200).json({ shops });
@@ -375,12 +402,11 @@ router.patch('/adminshop/:id/settings', verifyAdminToken, async (req, res) => {
 
         const dataToUpdate: any = {};
         if (isOpen !== undefined) dataToUpdate.isOpen = Boolean(isOpen);
-        if (slotDuration !== undefined) dataToUpdate.slotDuration = Number(slotDuration);
-        if (price !== undefined) dataToUpdate.price = Number(price);
 
         const updatedShop = await prisma.adminShop.update({
             where: { id: shopId },
-            data: dataToUpdate
+            data: dataToUpdate,
+            include: { services: true }
         });
 
         return res.status(200).json({ message: "Settings updated", shop: updatedShop });

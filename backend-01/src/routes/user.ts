@@ -335,7 +335,12 @@ router.get("/", verifyToken, async (req, res) => {
 
 router.get('/adminshops', async (req, res) => {
     try {
-        const shops = await prisma.adminShop.findMany(); // no filter -> all shops
+        const shops = await prisma.adminShop.findMany({
+            include: {
+                services: true,
+                category: true
+            }
+        }); // no filter -> all shops
         return res.status(200).json({ shops });
     } catch (error) {
         console.error('Error fetching shops:', error);

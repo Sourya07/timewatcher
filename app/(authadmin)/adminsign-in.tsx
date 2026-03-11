@@ -47,7 +47,7 @@ const Signin = () => {
             const res = await apiClient.post('/api/v1/admin/google', { idToken });
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', res.data.token);
-            router.replace('/adminfolder/');
+            router.replace('/adminfolder' as any);
         } catch (error: any) {
             Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
         } finally {
@@ -70,7 +70,7 @@ const Signin = () => {
             const res = await apiClient.post('/api/v1/admin/apple', { idToken: credential.identityToken, name });
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', res.data.token);
-            router.replace('/adminfolder/');
+            router.replace('/adminfolder' as any);
         } catch (e: any) {
             if (e.code !== 'ERR_REQUEST_CANCELED') {
                 Alert.alert('Apple Sign-In Failed', e.message || 'Something went wrong');
@@ -89,7 +89,7 @@ const Signin = () => {
             try {
                 await apiClient.get('/api/v1/admin/me');
                 // Token is valid → go to dashboard
-                router.replace('/adminfolder/');
+                router.replace('/adminfolder' as any);
             } catch {
                 // Token is stale (admin deleted, expired, etc.) → clear it
                 await SecureStore.deleteItemAsync('admintoken');
@@ -111,7 +111,7 @@ const Signin = () => {
             // Clear any legacy 'token' key that may still contain a stale admin token
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', token);
-            router.replace('/adminfolder/');
+            router.replace('/adminfolder' as any);
         } catch (error: any) {
             const message = error.response?.data?.error || error.message || 'Something went wrong';
             Alert.alert('Sign in Failed', message);

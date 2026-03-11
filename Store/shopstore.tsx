@@ -2,6 +2,15 @@
 import { create } from "zustand";
 import apiClient from "@/constants/axiosInstance";
 
+export interface ShopService {
+    id: number;
+    shopId: number;
+    name: string;
+    description?: string;
+    price: number;
+    durationMins?: number;
+}
+
 export interface Shop {
     id: number;
     name: string;
@@ -14,9 +23,9 @@ export interface Shop {
     longitude: number;
     timein: string;
     timeout: string;
-    price: number;
     isOpen?: boolean;
-    slotDuration?: number;
+    categoryId?: number;
+    services?: ShopService[];
 }
 
 interface ShopState {

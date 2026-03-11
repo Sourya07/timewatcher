@@ -47,8 +47,18 @@ router.get('/slots/:shopId', async (req, res) => {
 
         const shop = await prisma.adminShop.findUnique({
             where: { id: shopId },
-            select: { timein: true, timeout: true, isOpen: true, slotDuration: true }
+            select: { timein: true, timeout: true, isOpen: true },
         });
+
+        const serviceId = Number(req.query.serviceId);
+        
+        let SLOT_DURATION_MINS = 30; // default fallback if no service selected yet
+        if (serviceId) {
+            const service = await prisma.shopService.findUnique({ where: { id: serviceId } });
+            if (service && service.durationMins) {
+                SLOT_DURATION_MINS = service.durationMins;
+            }
+        }
 
         if (!shop) {
             return res.status(404).json({ message: "Shop not found" });
@@ -61,7 +71,8 @@ router.get('/slots/:shopId', async (req, res) => {
         const shopOpen = time12hToMinutes(shop.timein);
         const shopClose = time12hToMinutes(shop.timeout);
 
-        // Fetch all non-cancelled bookings for this shop on this date
+        // Fetch all non-cancelled bookings for ANY service inside this shop on this date
+        // Since booking now references shopServiceId, we query through the service relation.
         const targetDate = new Date(date);
         targetDate.setUTCHours(0, 0, 0, 0);
 
@@ -70,7 +81,7 @@ router.get('/slots/:shopId', async (req, res) => {
 
         const bookingsOnDate = await prisma.booking.findMany({
             where: {
-                shopId,
+                service: { shopId: shopId },
                 status: { not: "cancelled" },
                 startTime: {
                     gte: targetDate,
@@ -80,9 +91,8 @@ router.get('/slots/:shopId', async (req, res) => {
             select: { startTime: true, endTime: true }
         });
 
-        // Generate exact-minute slots governed by shop's custom slotDuration
+        // Generate exact-minute slots governed by the requested service's duration
         const slots = [];
-        const SLOT_DURATION_MINS = shop.slotDuration || 30;
 
         for (let currentTime = shopOpen; currentTime + SLOT_DURATION_MINS <= shopClose; currentTime += SLOT_DURATION_MINS) {
             const slotStart = new Date(targetDate);
@@ -117,8 +127,12 @@ router.get('/slots/:shopId', async (req, res) => {
 
 router.post('/', verifyToken, async (req, res) => {
     try {
-        const { shopId, duration, price, bookingStart, bookingEnd } = req.body;
+        const { shopServiceId, duration, price, bookingStart, bookingEnd } = req.body;
         const userId = Number(req.user?.id);
+
+        if (!shopServiceId) {
+            return res.status(400).json({ message: "shopServiceId is required" });
+        }
 
         if (!bookingStart || !bookingEnd) {
             return res.status(400).json({ message: "bookingStart and bookingEnd are required" });
@@ -136,22 +150,24 @@ router.post('/', verifyToken, async (req, res) => {
             return res.status(400).json({ message: "End time must be after start time" });
         }
 
-        // 1️⃣ Get shop's details
-        const shop = await prisma.adminShop.findUnique({
-            where: { id: shopId },
-            include: { Admin: { select: { email: true } } }
+        // 1️⃣ Get service details (which includes shop details)
+        const service = await prisma.shopService.findUnique({
+            where: { id: shopServiceId },
+            include: { shop: { include: { Admin: { select: { email: true, name: true } } } } }
         });
 
-        if (!shop) {
-            return res.status(404).json({ message: "Shop not found" });
+        if (!service) {
+            return res.status(404).json({ message: "Service not found" });
         }
+        
+        const shopId = service.shop.id;
 
-        // 2️⃣ Check for overlapping bookings
+        // 2️⃣ Check for overlapping bookings across ALL services for this shop
         // A booking overlaps if (existingStart < newEnd) AND (existingEnd > newStart)
         // Also it must be "booked: true" or "status != cancelled"
         const conflictingBooking = await prisma.booking.findFirst({
             where: {
-                shopId,
+                service: { shopId: shopId },
                 status: { not: "cancelled" }, // any active/upcoming booking
                 AND: [
                     { startTime: { lt: endDt } },
@@ -170,7 +186,7 @@ router.post('/', verifyToken, async (req, res) => {
         // 3️⃣ Create booking
         const booking = await prisma.booking.create({
             data: {
-                shopId,
+                shopServiceId,
                 duration,
                 price,
                 booked: true, // Keep for legacy until frontend transitions fully
@@ -180,10 +196,14 @@ router.post('/', verifyToken, async (req, res) => {
                 userId
             },
             include: {
-                shop: {
-                    select: {
-                        occupation: true,
-                        Admin: { select: { name: true, email: true } }
+                service: {
+                    include: {
+                        shop: {
+                            select: {
+                                occupation: true,
+                                Admin: { select: { name: true, email: true } }
+                            }
+                        }
                     }
                 },
                 user: {
@@ -193,7 +213,7 @@ router.post('/', verifyToken, async (req, res) => {
         });
 
         // 4️⃣ Optional: Notify admin
-        const adminEmail = booking.shop.Admin.email;
+        const adminEmail = booking.service.shop.Admin.email;
         console.log(`📢 Notify admin ${adminEmail}: ${booking.user.name} booked from ${bookingStart} to ${bookingEnd}`);
 
         res.status(201).json({
@@ -218,19 +238,22 @@ router.get('/', verifyToken, async (req, res) => {
         const bookings = await prisma.booking.findMany({
             where: { userId },
             include: {
-                shop: {
-                    select: {
-                        id: true,
-                        occupation: true,
-                        speclization: true,
-                        price: true,
-                        image: true,
-                        address: true,
-                        latitude: true,
-                        longitude: true,
-                        Admin: {
+                service: {
+                    include: {
+                        shop: {
                             select: {
-                                name: true
+                                id: true,
+                                occupation: true,
+                                speclization: true,
+                                image: true,
+                                address: true,
+                                latitude: true,
+                                longitude: true,
+                                Admin: {
+                                    select: {
+                                        name: true
+                                    }
+                                }
                             }
                         }
                     }

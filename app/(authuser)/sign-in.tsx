@@ -48,7 +48,7 @@ const UserSignInScreen = () => {
         setSubmitting(true);
         try {
             await userGoogleSignin(idToken);
-            router.push('../userflow/setting');
+            router.replace('/userflow/setting');
         } catch (error: any) {
             Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
         } finally {
@@ -69,7 +69,7 @@ const UserSignInScreen = () => {
                 ? `${credential.fullName.givenName} ${credential.fullName.familyName || ''}`.trim() 
                 : undefined;
             await userAppleSignin(credential.identityToken!, name);
-            router.push('../userflow/setting');
+            router.replace('/userflow/setting');
         } catch (e: any) {
             if (e.code !== 'ERR_REQUEST_CANCELED') {
                 Alert.alert('Apple Sign-In Failed', e.message || 'Something went wrong');
@@ -93,7 +93,7 @@ const UserSignInScreen = () => {
         setSubmitting(true);
         try {
             await userSignin(form.email, form.password);
-            router.push('../userflow/setting');
+            router.replace('/userflow/setting');
         } catch (error: any) {
             Alert.alert('Sign in Failed', error.message);
         } finally {

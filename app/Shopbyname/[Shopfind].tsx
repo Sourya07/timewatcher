@@ -14,6 +14,7 @@ import { useShopStore, Shop } from "@/Store/shopstore";
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
 import { useThemeStore } from "@/Store/themeStore";
+import BackButton from "@/components/BackButton";
 
 export default function ShopByName() {
     const router = useRouter();
@@ -63,9 +64,7 @@ export default function ShopByName() {
                         style={{ backgroundColor: colors.surface, borderColor: colors.border }}
                     >
                         <View className="flex-row items-center">
-                            <TouchableOpacity onPress={() => router.back()} className="bg-gray-50 p-3 rounded-full mr-3">
-                                <Ionicons name="arrow-back" size={20} color={colors.text} />
-                            </TouchableOpacity>
+                            <BackButton style={{ marginRight: 12 }} backgroundColor={colors.background} />
                             <View>
                                 <Text
                                     className="text-2xl font-black tracking-tight"
@@ -186,7 +185,7 @@ export default function ShopByName() {
                                             className="font-bold text-sm"
                                             style={{ color: colors.primary }}
                                         >
-                                            ₹{shop.price}/m
+                                            ₹{shop.services?.[0]?.price || 0}
                                         </Text>
                                     </View>
                                 </View>

@@ -3,7 +3,7 @@ import apiClient from './axiosInstance';
 // ─── Bookings ──────────────────────────────────────────────────────────────────
 
 export const createBooking = async (data: {
-    shopId: number;
+    shopServiceId: number;
     duration: number;
     price: number;
     bookingStart: string;
@@ -13,8 +13,12 @@ export const createBooking = async (data: {
     return res.data;
 };
 
-export const getShopSlots = async (shopId: number, date: string) => {
-    const res = await apiClient.get(`/api/v1/booking/slots/${shopId}?date=${date}`);
+export const getShopSlots = async (shopId: number, date: string, serviceId?: number) => {
+    let url = `/api/v1/booking/slots/${shopId}?date=${date}`;
+    if (serviceId) {
+        url += `&serviceId=${serviceId}`;
+    }
+    const res = await apiClient.get(url);
     return res.data;
 };
 

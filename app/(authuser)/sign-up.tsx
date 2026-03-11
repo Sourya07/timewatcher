@@ -12,6 +12,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import { userAppleSignin, userGoogleSignin } from '@/constants/userApi';
 import { useEffect } from 'react';
+import BackButton from '@/components/BackButton';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -98,6 +99,7 @@ const UserSignUpScreen = () => {
 
     return (
         <View>
+            <BackButton style={{ alignSelf: 'flex-start', marginBottom: 16 }} backgroundColor={colors.surface} />
             <Text style={[styles.title, { color: colors.text }]}>Create account ✨</Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>Join TimeWatcher today</Text>
 
