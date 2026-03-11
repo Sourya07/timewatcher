@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import {
     View, Text, Alert, ScrollView, SafeAreaView,
-    TouchableOpacity, StyleSheet, FlatList, Image
+    TouchableOpacity, StyleSheet, Image, Modal
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import CustomInput from '@/components/Custominput';
 import CustomButton from '@/components/Custombutton';
-import WheelPickerExpo from "react-native-wheel-picker-expo";
 import { createAdminShop } from '@/constants/adminApi';
 import { router } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -23,12 +22,44 @@ export default function AdminShopForm() {
     const { colors } = useThemeStore();
     const [form, setForm] = useState({
         image: '', latitude: null as number | null, longitude: null as number | null,
-        address: '', mobilenumber: '', occupation: '', speclization: '',
-        timeinHour: '', timeinPeriod: 'AM', timeoutHour: '', timeoutPeriod: 'PM', price: '',
-        slotDuration: 30
+        address: '', mobilenumber: '', occupation: 'Doctor', speclization: '',
+        timeinHour: '', timeinPeriod: 'AM', timeoutHour: '', timeoutPeriod: 'PM'
     });
+
+    const OCCUPATION_OPTIONS = [
+        { label: 'Doctor', value: 'Doctor' },
+        { label: 'Advocate', value: 'Advocate' },
+        { label: 'Barber', value: 'Barber' },
+        { label: 'Teacher', value: 'Teacher' },
+        { label: 'Courier', value: 'Courier' },
+        { label: 'Photographer', value: 'Photographer' },
+        { label: 'Government Services', value: 'Government Services' },
+        { label: 'Other', value: 'Other' },
+    ];
+    
+    const [services, setServices] = useState([
+        { id: Date.now().toString(), name: '', price: '', durationMins: 30 }
+    ]);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [occModalVisible, setOccModalVisible] = useState(false);
+
+    const handleServiceChange = (id: string, field: string, value: string | number) => {
+        setServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    };
+
+    const addService = () => {
+        setServices(prev => [...prev, { id: Date.now().toString(), name: '', price: '', durationMins: 30 }]);
+    };
+
+    const removeService = (id: string) => {
+        if (services.length === 1) {
+            Alert.alert('Error', 'You must have at least one service');
+            return;
+        }
+        setServices(prev => prev.filter(s => s.id !== id));
+    };
 
     const handleChange = (name: string, value: string) =>
         setForm((prev) => ({ ...prev, [name]: value }));
@@ -77,6 +108,14 @@ export default function AdminShopForm() {
         const outHour24 = convertTo24Hour(form.timeoutHour, form.timeoutPeriod as 'AM' | 'PM');
         if (isNaN(inHour24) || isNaN(outHour24)) { Alert.alert('Error', 'Please enter valid hours'); return false; }
         if (outHour24 <= inHour24) { Alert.alert('Error', 'Time Out must be after Time In'); return false; }
+        
+        // Validate services
+        for (const s of services) {
+            if (!s.name.trim() || !s.price) {
+                Alert.alert('Error', 'Please fill in all service names and prices');
+                return false;
+            }
+        }
         return true;
     };
 
@@ -89,12 +128,16 @@ export default function AdminShopForm() {
                 latitude: form.latitude, longitude: form.longitude,
                 timein: `${form.timeinHour} ${form.timeinPeriod}`,
                 timeout: `${form.timeoutHour} ${form.timeoutPeriod}`,
-                price: Number(form.price),
-                slotDuration: Number(form.slotDuration),
-                isOpen: true
+                isOpen: true,
+                categoryName: form.occupation,
+                services: services.map(s => ({
+                    name: s.name,
+                    price: Number(s.price),
+                    durationMins: Number(s.durationMins)
+                }))
             });
             Alert.alert('Success', 'Shop created successfully!');
-            router.replace('/adminfolder/');
+            router.replace('/adminfolder');
         } catch (err: any) {
             Alert.alert('Error', err.message);
         } finally {
@@ -107,7 +150,7 @@ export default function AdminShopForm() {
             {/* Header */}
             <View style={[styles.header, { backgroundColor: colors.background }]}>
                 <TouchableOpacity
-                    onPress={() => router.replace('/adminfolder/')}
+                    onPress={() => router.replace('/adminfolder')}
                     style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     activeOpacity={0.8}
                 >
@@ -202,12 +245,17 @@ export default function AdminShopForm() {
                         />
                     </View>
                     <View style={{ marginTop: 24 }}>
-                        <CustomInput
-                            label="Occupation / Service Type"
-                            placeholder="e.g. Barber, Tutor, Photographer"
-                            value={form.occupation}
-                            onChangeText={(text) => handleChange('occupation', text)}
-                        />
+                        <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Occupation / Category</Text>
+                        <TouchableOpacity
+                            onPress={() => setOccModalVisible(true)}
+                            style={[styles.dropdownBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={{ fontSize: 16, color: form.occupation ? colors.text : colors.textMuted, fontWeight: '500' }}>
+                                {form.occupation || 'Select Category'}
+                            </Text>
+                            <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                        </TouchableOpacity>
                     </View>
                     <View style={{ marginTop: 24 }}>
                         <CustomInput
@@ -240,13 +288,22 @@ export default function AdminShopForm() {
                                 keyboardType="numeric"
                             />
                         </View>
-                        <View style={[styles.pickerWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                            <WheelPickerExpo
-                                height={70}
-                                initialSelectedIndex={form.timeinPeriod === 'AM' ? 0 : 1}
-                                items={[{ label: 'AM', value: 'AM' }, { label: 'PM', value: 'PM' }]}
-                                onChange={({ item }) => handleChange('timeinPeriod', item.value)}
-                            />
+                        <View style={[styles.toggleWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            {['AM', 'PM'].map((period) => {
+                                const isActive = form.timeinPeriod === period;
+                                return (
+                                    <TouchableOpacity
+                                        key={period}
+                                        onPress={() => handleChange('timeinPeriod', period)}
+                                        style={[styles.toggleBtn, isActive && { backgroundColor: colors.primary }]}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.toggleText, isActive ? { color: 'white' } : { color: colors.text }]}>
+                                            {period}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
                     </View>
 
@@ -262,76 +319,100 @@ export default function AdminShopForm() {
                                 keyboardType="numeric"
                             />
                         </View>
-                        <View style={styles.pickerWrapper}>
-                            <WheelPickerExpo
-                                height={70}
-                                initialSelectedIndex={form.timeoutPeriod === 'AM' ? 0 : 1}
-                                items={[{ label: 'AM', value: 'AM' }, { label: 'PM', value: 'PM' }]}
-                                onChange={({ item }) => handleChange('timeoutPeriod', item.value)}
-                            />
+                        <View style={[styles.toggleWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            {['AM', 'PM'].map((period) => {
+                                const isActive = form.timeoutPeriod === period;
+                                return (
+                                    <TouchableOpacity
+                                        key={period}
+                                        onPress={() => handleChange('timeoutPeriod', period)}
+                                        style={[styles.toggleBtn, isActive && { backgroundColor: colors.primary }]}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.toggleText, isActive ? { color: 'white' } : { color: colors.text }]}>
+                                            {period}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
                     </View>
                 </View>
 
-                {/* Section: Pricing & Settings */}
+                {/* Section: Services List */}
                 <View style={[styles.section, { backgroundColor: colors.surface }]}>
                     <View style={styles.sectionTitleWrapper}>
                         <View style={[styles.sectionTitleIcon, { backgroundColor: '#ECFDF5' }]}>
                             <Ionicons name="pricetag-outline" size={18} color="#10B981" />
                         </View>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pricing & Settings</Text>
-                    </View>
-                    
-                    <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Slot Duration</Text>
-                    <View style={styles.timeRow}>
-                        <View
-                            style={[
-                                styles.pickerWrapper,
-                                {
-                                    height: 90,
-                                    marginBottom: 24,
-                                    flex: 1,
-                                    backgroundColor: colors.background,
-                                    borderColor: colors.border,
-                                },
-                            ]}
-                        >
-                            <WheelPickerExpo
-                                height={90}
-                                initialSelectedIndex={form.slotDuration === 15 ? 0 : form.slotDuration === 30 ? 1 : 2}
-                                items={[
-                                    { label: '15 Mins', value: 15 }, 
-                                    { label: '30 Mins', value: 30 }, 
-                                    { label: '60 Mins', value: 60 }
-                                ]}
-                                onChange={({ item }) => handleChange('slotDuration', item.value)}
-                            />
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Services Menu</Text>
+                            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>Add variants or distinct services</Text>
                         </View>
+                        <TouchableOpacity style={{ padding: 6, backgroundColor: colors.primary + '1A', borderRadius: 8 }} onPress={addService}>
+                            <Ionicons name="add" size={20} color={colors.primary} />
+                        </TouchableOpacity>
                     </View>
 
-                    <CustomInput
-                        label={`Price per Slot (${form.slotDuration} min) (₹)`}
-                        placeholder="e.g. 50"
-                        value={form.price}
-                        onChangeText={(text) => handleChange('price', text)}
-                        keyboardType="numeric"
-                    />
-                    {form.price ? (
-                        <View
-                            style={[
-                                styles.pricePreview,
-                                { backgroundColor: colors.background, borderColor: colors.border },
-                            ]}
-                        >
-                            <Ionicons name="information-circle-outline" size={18} color={colors.warning} />
-                            <Text style={[styles.pricePreviewText, { color: colors.textMuted }]}>
-                                Customers will pay ₹{form.price} for a {form.slotDuration} min appointment
-                            </Text>
+                    {services.map((svc, index) => (
+                        <View key={svc.id} style={{ marginBottom: 24, paddingBottom: 24, borderBottomWidth: index < services.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Service #{index + 1}</Text>
+                                {services.length > 1 && (
+                                    <TouchableOpacity onPress={() => removeService(svc.id)}>
+                                        <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '600' }}>Remove</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            <CustomInput
+                                label="Service Name"
+                                placeholder="e.g. Haircut, Online Consultation"
+                                value={svc.name}
+                                onChangeText={(text) => handleServiceChange(svc.id, 'name', text)}
+                            />
+
+                            <View style={{ flexDirection: 'row', gap: 16, marginTop: 16, alignItems: 'flex-end' }}>
+                                <View style={{ flex: 1.2 }}>
+                                    <CustomInput
+                                        label="Price (₹)"
+                                        placeholder="e.g. 500"
+                                        value={svc.price}
+                                        onChangeText={(text) => handleServiceChange(svc.id, 'price', text)}
+                                        keyboardType="numeric"
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Duration (Mins)</Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+                                        {[15, 30, 45, 60, 90, 120].map((mins) => {
+                                            const isActive = svc.durationMins === mins;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={mins}
+                                                    onPress={() => handleServiceChange(svc.id, 'durationMins', mins)}
+                                                    style={{
+                                                        paddingHorizontal: 16,
+                                                        paddingVertical: 12,
+                                                        borderRadius: 12,
+                                                        backgroundColor: isActive ? colors.primary : colors.background,
+                                                        borderWidth: 1,
+                                                        borderColor: isActive ? colors.primary : colors.border,
+                                                    }}
+                                                >
+                                                    <Text style={{ fontWeight: '600', color: isActive ? 'white' : colors.text }}>
+                                                        {mins}m
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                </View>
+                            </View>
                         </View>
-                    ) : null}
+                    ))}
                 </View>
 
-                {/* Submit */}
                 <View style={styles.submitWrapper}>
                     <CustomButton
                         title={isSubmitting ? 'Creating listing…' : 'Publish Listing'}
@@ -340,6 +421,37 @@ export default function AdminShopForm() {
                     />
                 </View>
             </KeyboardAwareScrollView>
+
+            {/* Occupation Modal */}
+            <Modal visible={occModalVisible} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setOccModalVisible(false)} />
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Category</Text>
+                            <TouchableOpacity onPress={() => setOccModalVisible(false)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView contentContainerStyle={styles.modalScroll}>
+                            {OCCUPATION_OPTIONS.map((opt) => (
+                                <TouchableOpacity
+                                    key={opt.value}
+                                    onPress={() => { handleChange('occupation', opt.value); setOccModalVisible(false); }}
+                                    style={[styles.modalOption, form.occupation === opt.value && { backgroundColor: colors.primary + '1A' }]}
+                                >
+                                    <Text style={[styles.modalOptionText, { color: form.occupation === opt.value ? colors.primary : colors.text }]}>
+                                        {opt.label}
+                                    </Text>
+                                    {form.occupation === opt.value && (
+                                        <Ionicons name="checkmark" size={20} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -413,14 +525,65 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     timeRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-end' },
-    pickerWrapper: {
+    toggleWrapper: {
         flex: 1,
+        flexDirection: 'row',
         borderWidth: 1,
-        borderRadius: 16,
+        borderRadius: 12,
         overflow: 'hidden',
-        height: 70,
+        height: 52,
+    },
+    toggleBtn: {
+        flex: 1,
+        alignItems: 'center',
         justifyContent: 'center',
     },
+    toggleText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    dropdownBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        height: 56,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalDismiss: { flex: 1 },
+    modalContent: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingBottom: 40,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
+    },
+    modalTitle: { fontSize: 18, fontWeight: '800' },
+    modalCloseBtn: { padding: 4, backgroundColor: '#F3F4F6', borderRadius: 16 },
+    modalScroll: { padding: 20 },
+    modalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 8,
+    },
+    modalOptionText: { fontSize: 16, fontWeight: '600' },
     pricePreview: {
         flexDirection: 'row',
         alignItems: 'center',

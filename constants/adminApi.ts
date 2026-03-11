@@ -24,9 +24,13 @@ export interface AdminShopPayload {
     speclization: string;
     timein: string;
     timeout: string;
-    price: number;
+    categoryName?: string;
     isOpen?: boolean;
-    slotDuration?: number;
+    services?: {
+        name: string;
+        price: number;
+        durationMins: number;
+    }[];
 }
 
 export const createAdminShop = async (payload: AdminShopPayload) => {
@@ -34,7 +38,7 @@ export const createAdminShop = async (payload: AdminShopPayload) => {
     return res.data;
 };
 
-export const updateAdminShopSettings = async (shopId: number, settings: { isOpen?: boolean, slotDuration?: number, price?: number }) => {
+export const updateAdminShopSettings = async (shopId: number, settings: { isOpen?: boolean }) => {
     const res = await apiClient.patch(`/api/v1/admin/adminshop/${shopId}/settings`, settings);
     return res.data;
 };

@@ -1,7 +1,8 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlatList, Image, Pressable, Text, TouchableOpacity, View, StyleSheet } from "react-native";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { router } from "expo-router";
+import * as Location from 'expo-location';
 import { useShopStore } from '@/Store/shopstore';
 import { images, offers } from "@/constants";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +13,46 @@ import cn from 'clsx';
 export default function Index() {
     const { shops, fetchShops, loading } = useShopStore();
     const { colors } = useThemeStore();
+
+    const [location, setLocation] = useState<Location.LocationObject | null>(null);
+    const [address, setAddress] = useState<string>('Fetching location...');
+
+    useEffect(() => {
+        (async () => {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                setAddress('Location permission denied');
+                return;
+            }
+
+            try {
+                let loc = await Location.getCurrentPositionAsync({});
+                setLocation(loc);
+
+                let postalAddress = await Location.reverseGeocodeAsync({
+                    latitude: loc.coords.latitude,
+                    longitude: loc.coords.longitude
+                });
+
+                if (postalAddress && postalAddress.length > 0) {
+                    const addr = postalAddress[0];
+                    const formattedAddress = [
+                        addr.streetNumber,
+                        addr.street,
+                        addr.subregion,
+                        addr.city,
+                        addr.region,
+                        addr.postalCode
+                    ].filter(Boolean).join(', ');
+                    setAddress(formattedAddress || 'Unknown location');
+                } else {
+                    setAddress('Location found');
+                }
+            } catch (error) {
+                setAddress('Unable to fetch location');
+            }
+        })();
+    }, []);
 
     useEffect(() => {
         if (shops.length === 0) fetchShops();
@@ -60,7 +101,23 @@ export default function Index() {
                 contentContainerStyle={styles.listContent}
                 ListHeaderComponent={() => (
                     <View style={styles.header}>
-                        <View>
+                        <View style={styles.locationHeaderContainer}>
+                            <View style={styles.locationLeft}>
+                                <View style={styles.locationRow}>
+                                    <Ionicons name="navigate" size={18} color={colors.primary} />
+                                    <Text style={[styles.locationTitle, { color: colors.text }]}>Current Location</Text>
+                                    <Ionicons name="chevron-down" size={16} color={colors.text} />
+                                </View>
+                                <Text style={styles.locationText} numberOfLines={1}>
+                                    {address}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => router.push('/profile')}>
+                                <Ionicons name="person-circle" size={42} color={colors.text || '#4B5563'} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.greetingContainer}>
                             <Text style={styles.greeting}>Good day 👋</Text>
                             <Text style={[styles.appName, { color: colors.text }]}>TimeExchange</Text>
                             <Text style={styles.subtitle}>Book the services you need</Text>
@@ -87,6 +144,12 @@ const styles = StyleSheet.create({
     safeArea: { flex: 1 },
     listContent: { paddingBottom: 80, paddingHorizontal: 20 },
     header: { marginTop: 8, marginBottom: 20 },
+    locationHeaderContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    locationLeft: { flex: 1, paddingRight: 16 },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    locationTitle: { fontSize: 16, fontWeight: '700' },
+    locationText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
+    greetingContainer: { marginBottom: 20 },
     greeting: { fontSize: 14, color: '#9CA3AF', fontWeight: '500', marginBottom: 2 },
     appName: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
     subtitle: { fontSize: 14, color: '#6B7280', marginTop: 4, marginBottom: 20 },

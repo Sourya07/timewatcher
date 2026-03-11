@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { saveUserDetails } from "@/constants/userApi";
+import BackButton from "@/components/BackButton";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useThemeStore } from "@/Store/themeStore";
@@ -82,7 +83,7 @@ export default function LocationScreen() {
                 address: location,
                 mobilenumber: "please enter your mobile no",
             });
-            router.push("../(tabs)/profile");
+            router.replace("/(tabs)/profile" as any);
         } catch (error: any) {
             Alert.alert("Error", error.message || "Failed to submit location.");
         } finally {
@@ -93,6 +94,7 @@ export default function LocationScreen() {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={[styles.root, { backgroundColor: colors.primary }]}>
+                <BackButton style={{ position: 'absolute', top: 56, left: 16, zIndex: 10 }} iconColor="white" backgroundColor="rgba(255,255,255,0.2)" />
                 {/* Gradient top portion */}
                 <LinearGradient
                     colors={[colors.headerGradientStart, colors.headerGradientEnd]}

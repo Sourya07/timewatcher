@@ -19,9 +19,17 @@ model Admin {
   id           Int         @id @default(autoincrement())
   name         String
   email        String      @unique
-  password     String
+  password     String?
+  googleId     String?     @unique
+  appleId      String?     @unique
   isVerified   Boolean     @default(false)
   adminprofile AdminShop[]
+}
+
+model Category {
+  id    Int         @id @default(autoincrement())
+  name  String      @unique
+  shops AdminShop[]
 }
 
 model AdminShop {
@@ -35,11 +43,24 @@ model AdminShop {
   speclization String?
   timein       String
   timeout      String
-  price        Int
   isOpen       Boolean   @default(true)
-  slotDuration Int       @default(30)
   AdminId      Int
   Admin        Admin     @relation(fields: [AdminId], references: [id])
+  
+  categoryId   Int?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  
+  services     ShopService[]
+}
+
+model ShopService {
+  id           Int       @id @default(autoincrement())
+  shopId       Int
+  shop         AdminShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  price        Int
+  durationMins Int?
   bookings     Booking[]
 }
 
@@ -47,7 +68,9 @@ model User {
   id         Int          @id @default(autoincrement())
   name       String
   email      String       @unique
-  password   String
+  password   String?
+  googleId   String?      @unique
+  appleId    String?      @unique
   isVerified Boolean      @default(false)
   createdAt  DateTime     @default(now())
   bookings   Booking[]
@@ -68,7 +91,7 @@ model userprofile {
 
 model Booking {
   id        Int      @id @default(autoincrement())
-  shopId    Int
+  shopServiceId Int
   userId    Int
   duration  Int // in minutes
   price     Int
@@ -78,6 +101,6 @@ model Booking {
   status    String   @default("upcoming") // upcoming, active, completed, cancelled
   createdAt DateTime @default(now())
 
-  shop AdminShop @relation(fields: [shopId], references: [id])
-  user User      @relation(fields: [userId], references: [id])
+  service   ShopService @relation(fields: [shopServiceId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id])
 }

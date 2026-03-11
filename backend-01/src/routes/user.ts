@@ -7,12 +7,15 @@ import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '../middleware/usermiddleware';
 import sgMail from "@sendgrid/mail";
+import { OAuth2Client } from 'google-auth-library';
+import appleSignin from 'apple-signin-auth';
 
 const prisma = new PrismaClient();
 
-
 const router = express.Router();
 const JWT_SECRET = 'your_jwt_secret'; // 🔐 Use env in prod
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 console.log(process.env.SENDGRID_API_KEY)
@@ -142,19 +145,114 @@ router.post('/signin', async (req, res) => {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
-        // if (!user.isVerified) {
-        //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
-        // }
+        if (!user.password) {
+             return res.status(400).json({ error: 'Please use Social Login for this account' });
+        }
 
-        const isValid = await bcrypt.compare(password, user!.password);
+        const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });
 
-        const token = jwt.sign({ userId: user!.id }, JWT_SECRET);
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET);
 
         return res.json({ token });
     } catch (error) {
         console.error('Signin error:', error);
         return res.status(500).json({ error: 'Server error during signin' });
+    }
+});
+
+// Google Authentication
+router.post('/google', async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: [
+                GOOGLE_CLIENT_ID,
+                // Add your iOS/Android Client IDs here if they differ
+                process.env.GOOGLE_IOS_CLIENT_ID || '', 
+                process.env.GOOGLE_ANDROID_CLIENT_ID || ''
+            ].filter(Boolean),
+        });
+
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) return res.status(400).json({ error: 'Invalid Google Token' });
+
+        const email = payload.email;
+        const name = payload.name || 'User';
+        const googleId = payload.sub;
+
+        let user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    email,
+                    name,
+                    googleId,
+                    isVerified: true, // Google emails are already verified
+                }
+            });
+        } else if (!user.googleId) {
+            // Link existing account with Google
+            user = await prisma.user.update({
+                where: { email },
+                data: { googleId, isVerified: true }
+            });
+        }
+
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+        return res.json({ token });
+    } catch (error) {
+        console.error('Google Auth error:', error);
+        return res.status(500).json({ error: 'Failed to authenticate with Google' });
+    }
+});
+
+// Apple Authentication
+router.post('/apple', async (req, res) => {
+    try {
+        const { idToken, name } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
+
+        const decoded = jwt.decode(idToken) as jwt.JwtPayload;
+        const audience = process.env.APPLE_CLIENT_ID || (decoded && decoded.aud) || 'your.bundle.identifier';
+
+        // Verify Apple token
+        const appleIdTokenClaims = await appleSignin.verifyIdToken(idToken, {
+            audience,
+            ignoreExpiration: true, // Accept slightly expired tokens during auth flow delays
+        });
+
+        const email = appleIdTokenClaims.email;
+        const appleId = appleIdTokenClaims.sub;
+        if (!email || !appleId) return res.status(400).json({ error: 'Invalid Apple Token' });
+
+        let user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    email,
+                    name: name || 'User', // Apple only sends name on first login, frontend must capture it
+                    appleId,
+                    isVerified: true,
+                }
+            });
+        } else if (!user.appleId) {
+            user = await prisma.user.update({
+                where: { email },
+                data: { appleId, isVerified: true }
+            });
+        }
+
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+        return res.json({ token });
+    } catch (error) {
+        console.error('Apple Auth error:', error);
+        return res.status(500).json({ error: 'Failed to authenticate with Apple' });
     }
 });
 
@@ -237,7 +335,12 @@ router.get("/", verifyToken, async (req, res) => {
 
 router.get('/adminshops', async (req, res) => {
     try {
-        const shops = await prisma.adminShop.findMany(); // no filter -> all shops
+        const shops = await prisma.adminShop.findMany({
+            include: {
+                services: true,
+                category: true
+            }
+        }); // no filter -> all shops
         return res.status(200).json({ shops });
     } catch (error) {
         console.error('Error fetching shops:', error);

@@ -15,6 +15,20 @@ export const userSignin = async (email: string, password: string) => {
     return res.data; // { token }
 };
 
+export const userGoogleSignin = async (idToken: string) => {
+    const res = await apiClient.post('/api/v1/user/google', { idToken });
+    const { token } = res.data;
+    await SecureStore.setItemAsync('usertoken', token);
+    return res.data; 
+};
+
+export const userAppleSignin = async (idToken: string, name?: string) => {
+    const res = await apiClient.post('/api/v1/user/apple', { idToken, name });
+    const { token } = res.data;
+    await SecureStore.setItemAsync('usertoken', token);
+    return res.data; 
+};
+
 export const userSignout = async () => {
     await SecureStore.deleteItemAsync('usertoken');
 };

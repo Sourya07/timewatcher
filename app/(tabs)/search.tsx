@@ -6,8 +6,7 @@ import { router } from 'expo-router';
 import { useShopStore } from '@/Store/shopstore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '@/Store/themeStore';
-
-const CATEGORIES = ['All', 'Doctor', 'Barber', 'Courier', 'Advocate'];
+const CATEGORIES = ['All', 'Doctor', 'Advocate', 'Barber', 'Teacher', 'Courier', 'Photographer', 'Government Services'];
 
 export default function Search() {
     const { shops, fetchShops, loading } = useShopStore();
@@ -293,7 +292,7 @@ export default function Search() {
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
-                                        ₹{shop.price}
+                                        ₹{shop.services?.[0]?.price || 0}
                                         <Text
                                             style={{
                                                 fontSize: 11,
@@ -301,7 +300,7 @@ export default function Search() {
                                                 fontWeight: '500',
                                             }}
                                         >
-                                            /min
+                                            {' '}starting
                                         </Text>
                                     </Text>
                                     <Text

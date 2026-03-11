@@ -6,12 +6,15 @@ import { PrismaClient } from '@prisma/client';
 import { verifyAdminToken } from '../middleware/authmiddleware';
 import sgMail from "@sendgrid/mail";
 import crypto from "crypto";
+import { OAuth2Client } from 'google-auth-library';
+import appleSignin from 'apple-signin-auth';
 
 const prisma = new PrismaClient();
 
-
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Zod Schemas
 const signupSchema = z.object({
@@ -170,20 +173,111 @@ router.post('/signin', async (req, res) => {
         const user = await prisma.admin.findUnique({ where: { email } });
         if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
-        // Email verification temporarily disabled (SendGrid not configured locally)
-        // if (!user.isVerified) {
-        //     return res.status(403).json({ error: 'Please verify your email before logging in.' });
-        // }
+        if (!user.password) {
+             return res.status(400).json({ error: 'Please use Social Login for this account' });
+        }
 
-        const isValid = await bcrypt.compare(password, user!.password);
+        const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) return res.status(400).json({ error: 'Invalid credentials' });
 
-        const token = jwt.sign({ userId: user!.id }, JWT_SECRET);
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET);
 
         return res.json({ token });
     } catch (error) {
         console.error('Admin signin error:', error);
         return res.status(500).json({ error: 'Server error during signin' });
+    }
+});
+
+// Google Authentication
+router.post('/google', async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: [
+                GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_IOS_CLIENT_ID || '', 
+                process.env.GOOGLE_ANDROID_CLIENT_ID || ''
+            ].filter(Boolean),
+        });
+
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) return res.status(400).json({ error: 'Invalid Google Token' });
+
+        const email = payload.email;
+        const name = payload.name || 'Admin';
+        const googleId = payload.sub;
+
+        let admin = await prisma.admin.findUnique({ where: { email } });
+
+        if (!admin) {
+            admin = await prisma.admin.create({
+                data: {
+                    email,
+                    name,
+                    googleId,
+                    isVerified: true, 
+                }
+            });
+        } else if (!admin.googleId) {
+            admin = await prisma.admin.update({
+                where: { email },
+                data: { googleId, isVerified: true }
+            });
+        }
+
+        const token = jwt.sign({ userId: admin.id }, JWT_SECRET);
+        return res.json({ token });
+    } catch (error) {
+        console.error('Google Auth error:', error);
+        return res.status(500).json({ error: 'Failed to authenticate with Google' });
+    }
+});
+
+// Apple Authentication
+router.post('/apple', async (req, res) => {
+    try {
+        const { idToken, name } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'Missing idToken' });
+
+        const decoded = jwt.decode(idToken) as jwt.JwtPayload;
+        const audience = process.env.APPLE_CLIENT_ID || (decoded && decoded.aud) || 'your.bundle.identifier';
+
+        const appleIdTokenClaims = await appleSignin.verifyIdToken(idToken, {
+            audience,
+            ignoreExpiration: true, 
+        });
+
+        const email = appleIdTokenClaims.email;
+        const appleId = appleIdTokenClaims.sub;
+        if (!email || !appleId) return res.status(400).json({ error: 'Invalid Apple Token' });
+
+        let admin = await prisma.admin.findUnique({ where: { email } });
+
+        if (!admin) {
+            admin = await prisma.admin.create({
+                data: {
+                    email,
+                    name: name || 'Admin', 
+                    appleId,
+                    isVerified: true,
+                }
+            });
+        } else if (!admin.appleId) {
+            admin = await prisma.admin.update({
+                where: { email },
+                data: { appleId, isVerified: true }
+            });
+        }
+
+        const token = jwt.sign({ userId: admin.id }, JWT_SECRET);
+        return res.json({ token });
+    } catch (error) {
+        console.error('Apple Auth error:', error);
+        return res.status(500).json({ error: 'Failed to authenticate with Apple' });
     }
 });
 
@@ -206,19 +300,28 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
         speclization,
         timein,
         timeout,
-        price,
         isOpen,
-        slotDuration
+        categoryName, // newly added
+        services      // newly added, array of { name, price, durationMins, description }
     } = req.body;
 
     try {
         const adminExists = await prisma.admin.findUnique({
             where: { id: adminId }
         });
-        console.log('Admin found in DB:', adminExists ? `id=${adminExists.id}, email=${adminExists.email}` : 'NOT FOUND');
 
         if (!adminExists) {
             return res.status(404).json({ error: 'Admin not found' });
+        }
+
+        // Find or create Category
+        let categoryId = null;
+        if (categoryName) {
+            let cat = await prisma.category.findUnique({ where: { name: categoryName } });
+            if (!cat) {
+                cat = await prisma.category.create({ data: { name: categoryName } });
+            }
+            categoryId = cat.id;
         }
 
         const newShop = await prisma.adminShop.create({
@@ -232,11 +335,25 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
                 speclization,
                 timein,
                 timeout,
-                price,
                 isOpen: isOpen ?? true,
-                slotDuration: slotDuration ?? 30,
                 Admin: { connect: { id: adminId } },
+                ...(categoryId && { category: { connect: { id: categoryId } } }),
+                // Create nested services
+                ...(services && services.length > 0 && {
+                    services: {
+                        create: services.map((s: any) => ({
+                            name: s.name,
+                            price: Number(s.price),
+                            durationMins: s.durationMins ? Number(s.durationMins) : null,
+                            description: s.description || null
+                        }))
+                    }
+                })
             },
+            include: {
+                services: true,
+                category: true
+            }
         });
 
         return res.status(201).json({ shop: newShop });
@@ -253,6 +370,10 @@ router.get('/adminshops', verifyAdminToken, async (req, res) => {
             where: {
                 AdminId: adminId,
             },
+            include: {
+                services: true,
+                category: true
+            }
         });
 
         return res.status(200).json({ shops });
@@ -281,12 +402,11 @@ router.patch('/adminshop/:id/settings', verifyAdminToken, async (req, res) => {
 
         const dataToUpdate: any = {};
         if (isOpen !== undefined) dataToUpdate.isOpen = Boolean(isOpen);
-        if (slotDuration !== undefined) dataToUpdate.slotDuration = Number(slotDuration);
-        if (price !== undefined) dataToUpdate.price = Number(price);
 
         const updatedShop = await prisma.adminShop.update({
             where: { id: shopId },
-            data: dataToUpdate
+            data: dataToUpdate,
+            include: { services: true }
         });
 
         return res.status(200).json({ message: "Settings updated", shop: updatedShop });
