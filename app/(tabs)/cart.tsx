@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Animated, Platform, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Animated, Platform, TextInput, Alert, Modal, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -15,6 +15,7 @@ export default function Cart() {
     const [searchQuery, setSearchQuery] = useState('');
     const [userBookings, setUserBookings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedBooking, setSelectedBooking] = useState<any>(null);
     const { colors } = useThemeStore();
 
     useFocusEffect(
@@ -96,11 +97,15 @@ export default function Cart() {
 
         if (searchQuery.trim()) {
             const lowerQuery = searchQuery.toLowerCase();
-            return baseOrders.filter(order => 
-                (order.shop?.Admin?.name && order.shop.Admin.name.toLowerCase().includes(lowerQuery)) ||
-                (order.shop?.occupation && order.shop.occupation.toLowerCase().includes(lowerQuery)) ||
-                (order.shop?.speclization && order.shop.speclization.toLowerCase().includes(lowerQuery))
-            );
+            return baseOrders.filter(order => {
+                const shop = order.service?.shop || {};
+                return (
+                    (shop.Admin?.name && shop.Admin.name.toLowerCase().includes(lowerQuery)) ||
+                    (shop.occupation && shop.occupation.toLowerCase().includes(lowerQuery)) ||
+                    (shop.speclization && shop.speclization.toLowerCase().includes(lowerQuery)) ||
+                    (order.service?.name && order.service.name.toLowerCase().includes(lowerQuery))
+                );
+            });
         }
 
         return baseOrders;
@@ -280,18 +285,18 @@ export default function Cart() {
                             {/* Provider Info */}
                             <TouchableOpacity
                                 style={{ flexDirection: 'row', alignItems: 'center' }}
-                                onPress={() => router.push(`/shops/${order.shopId}` as any)}
+                                onPress={() => router.push(`/shops/${order.service?.shop?.id}` as any)}
                                 activeOpacity={0.7}
                             >
                                 <Image
-                                    source={{ uri: order.shop?.image || 'https://via.placeholder.com/150' }}
+                                    source={{ uri: order.service?.shop?.image || 'https://via.placeholder.com/150' }}
                                     style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.background, borderWidth: 2, borderColor: colors.border }}
                                 />
                                 <View style={{ flex: 1, marginLeft: 16 }}>
-                                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 2 }}>{order.shop?.Admin?.name || order.shop?.occupation}</Text>
+                                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 2 }}>{order.service?.shop?.Admin?.name || order.service?.shop?.occupation}</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                         <MaterialIcons name="work" size={14} color={colors.textMuted} />
-                                        <Text style={{ fontSize: 14, color: colors.textMuted }}>{order.shop?.speclization || order.shop?.occupation}</Text>
+                                        <Text style={{ fontSize: 14, color: colors.textMuted }}>{order.service?.name || order.service?.shop?.speclization || order.service?.shop?.occupation}</Text>
                                     </View>
                                 </View>
                                 <View>
@@ -304,7 +309,7 @@ export default function Cart() {
                             <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
                                 <TouchableOpacity
                                     style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.background, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}
-                                    onPress={() => activeTab === 'Active' ? handleCancel(order.id) : null}
+                                    onPress={() => activeTab === 'Active' ? handleCancel(order.id) : setSelectedBooking(order)}
                                 >
                                     <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14 }}>
                                         {activeTab === 'Active' ? 'Cancel' : 'E-Receipt'}
@@ -313,7 +318,7 @@ export default function Cart() {
                                 
                                 <TouchableOpacity
                                     style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: activeTab === 'Active' ? colors.primary : colors.text, alignItems: 'center' }}
-                                    onPress={() => router.push(`/shops/${order.shopId}` as any)}
+                                    onPress={() => activeTab === 'Active' ? setSelectedBooking(order) : router.push(`/shops/${order.service?.shop?.id}` as any)}
                                 >
                                     <Text style={{ color: colors.surface, fontWeight: '600', fontSize: 14 }}>
                                         {activeTab === 'Active' ? 'View Details' : 'Book Again'}
@@ -325,6 +330,99 @@ export default function Cart() {
                     ))
                 )}
             </ScrollView>
+
+            {/* Receipt / View Details Modal */}
+            <Modal
+                visible={!!selectedBooking}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSelectedBooking(null)}
+            >
+                {selectedBooking && (
+                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }}>
+                        <TouchableOpacity style={{ ...StyleSheet.absoluteFillObject }} activeOpacity={1} onPress={() => setSelectedBooking(null)} />
+                        
+                        <View style={{ backgroundColor: colors.surface, borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                            {/* Receipt Header */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Ionicons name="receipt" size={20} color={colors.primary} />
+                                    </View>
+                                    <View>
+                                        <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Booking Details</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted }}>ID: #{selectedBooking.id.toString().padStart(6, '0')}</Text>
+                                    </View>
+                                </View>
+                                <TouchableOpacity onPress={() => setSelectedBooking(null)} style={{ padding: 6, backgroundColor: colors.background, borderRadius: 20 }}>
+                                    <Ionicons name="close" size={20} color={colors.text} />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 20, opacity: 0.5 }} />
+                            
+                            {/* Date & Time Row */}
+                            <View style={{ flexDirection: 'row', backgroundColor: colors.background, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
+                                <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: colors.border }}>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', color: colors.textMuted, marginBottom: 4 }}>Date</Text>
+                                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{new Date(selectedBooking.startTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}</Text>
+                                </View>
+                                <View style={{ flex: 1, paddingLeft: 16 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', color: colors.textMuted, marginBottom: 4 }}>Time</Text>
+                                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{new Date(selectedBooking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                                </View>
+                            </View>
+
+                            {/* Service Details */}
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Service Information</Text>
+                            <View style={{ marginBottom: 24 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <Text style={{ fontSize: 14, color: colors.textMuted }}>Provider</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{selectedBooking.service?.shop?.Admin?.name || selectedBooking.service?.shop?.occupation}</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <Text style={{ fontSize: 14, color: colors.textMuted }}>Service</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{selectedBooking.service?.name}</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={{ fontSize: 14, color: colors.textMuted }}>Duration</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{selectedBooking.duration} mins</Text>
+                                </View>
+                            </View>
+
+                            <View style={{ height: 1, backgroundColor: colors.border, borderStyle: 'dashed', borderWidth: 1, borderRadius: 1, marginBottom: 20, opacity: 0.3 }} />
+
+                            {/* Payment Breakdown */}
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 16 }}>Payment Summary</Text>
+                            <View style={{ gap: 12, marginBottom: 20 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={{ fontSize: 14, color: colors.textMuted }}>Service Cost</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>₹{selectedBooking.price}</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={{ fontSize: 14, color: colors.textMuted }}>Platform Fee (5%)</Text>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>₹{(selectedBooking.price * 0.05).toFixed(2)}</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                                    <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Total Paid</Text>
+                                    <Text style={{ fontSize: 18, fontWeight: '800', color: colors.primary }}>₹{(selectedBooking.price * 1.05).toFixed(2)}</Text>
+                                </View>
+                            </View>
+                            
+                            {/* CTA Action */}
+                            <TouchableOpacity
+                                style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.background, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}
+                                onPress={() => {
+                                    setSelectedBooking(null);
+                                    router.push(`/shops/${selectedBooking.service?.shop?.id}` as any);
+                                }}
+                            >
+                                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15 }}>View Provider Profile</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+            </Modal>
         </SafeAreaView>
     );
 }
