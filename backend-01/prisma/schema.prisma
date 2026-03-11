@@ -19,7 +19,9 @@ model Admin {
   id           Int         @id @default(autoincrement())
   name         String
   email        String      @unique
-  password     String
+  password     String?
+  googleId     String?     @unique
+  appleId      String?     @unique
   isVerified   Boolean     @default(false)
   adminprofile AdminShop[]
 }
@@ -47,7 +49,9 @@ model User {
   id         Int          @id @default(autoincrement())
   name       String
   email      String       @unique
-  password   String
+  password   String?
+  googleId   String?      @unique
+  appleId    String?      @unique
   isVerified Boolean      @default(false)
   createdAt  DateTime     @default(now())
   bookings   Booking[]
