@@ -388,4 +388,123 @@ router.post('/userdetails', verifyToken, async (req, res) => {
     }
 });
 
+// ----------------------------------------------------------------------
+// ADDRESS BOOK APIS
+// ----------------------------------------------------------------------
+
+// 1. Get all saved addresses for a user
+router.get('/addresses', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        const addresses = await prisma.userAddress.findMany({
+            where: { userId },
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }]
+        });
+        res.status(200).json(addresses);
+    } catch (error: any) {
+        console.error("Error fetching addresses:", error);
+        res.status(500).json({ error: "Failed to fetch addresses" });
+    }
+});
+
+// 2. Add a new address to the address book
+router.post('/addresses', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        // Expect tag (e.g., Home, Work, Other), full address, lat, lng, and optional isDefault flag.
+        const { tag, address, latitude, longitude, isDefault, flatNo, pincode, mobileNo } = req.body;
+
+        if (!tag || !address || latitude === undefined || longitude === undefined) {
+             return res.status(400).json({ error: "Missing required address fields" });
+        }
+
+        // If this is marked default, or if it's the user's first address, unset old defaults and update primary profile
+        const existingCount = await prisma.userAddress.count({ where: { userId } });
+        const shouldBeDefault = isDefault || existingCount === 0;
+
+        if (shouldBeDefault) {
+            await prisma.userAddress.updateMany({
+                where: { userId },
+                data: { isDefault: false }
+            });
+            
+            // Sync with primary legacy profile
+            await prisma.userprofile.upsert({
+                where: { UserID: userId },
+                update: { address, latitude, longitude, mobilenumber: mobileNo || '' },
+                create: { address, latitude, longitude, UserID: userId, mobilenumber: mobileNo || '' }
+            });
+        }
+
+        const newAddress = await prisma.userAddress.create({
+            data: {
+                userId,
+                tag,
+                flatNo,
+                address,
+                pincode,
+                mobileNo,
+                latitude,
+                longitude,
+                isDefault: shouldBeDefault
+            }
+        });
+
+        res.status(201).json(newAddress);
+    } catch (error: any) {
+        console.error("Error adding address:", error);
+        res.status(500).json({ error: "Failed to add address" });
+    }
+});
+
+// 3. Mark a specific address as the default Active Location
+router.put('/addresses/:id/default', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        const addressId = Number(req.params.id);
+
+        const targetAddress = await prisma.userAddress.findUnique({
+            where: { id: addressId }
+        });
+
+        if (!targetAddress || targetAddress.userId !== userId) {
+            return res.status(404).json({ error: "Address not found" });
+        }
+
+        // Unset all existing defaults
+        await prisma.userAddress.updateMany({
+            where: { userId },
+            data: { isDefault: false }
+        });
+
+        // Set this one as default
+        const updatedAddress = await prisma.userAddress.update({
+            where: { id: addressId },
+            data: { isDefault: true }
+        });
+
+        // Sync with primary legacy profile for backward compatibility in the app
+        await prisma.userprofile.upsert({
+            where: { UserID: userId },
+            update: { 
+                address: targetAddress.address, 
+                latitude: targetAddress.latitude, 
+                longitude: targetAddress.longitude 
+            },
+            create: { 
+                address: targetAddress.address, 
+                latitude: targetAddress.latitude, 
+                longitude: targetAddress.longitude, 
+                UserID: userId, 
+                mobilenumber: '' 
+            }
+        });
+
+        res.status(200).json(updatedAddress);
+    } catch (error: any) {
+        console.error("Error setting default address:", error);
+        res.status(500).json({ error: "Failed to set default address" });
+    }
+});
+
 export default router;

@@ -63,6 +63,32 @@ export const saveUserDetails = async (data: {
     return res.data;
 };
 
+// ─── Address Book ──────────────────────────────────────────────────────────────
+
+export const getAddresses = async () => {
+    const res = await apiClient.get('/api/v1/user/addresses');
+    return res.data;
+};
+
+export const saveNewAddress = async (data: {
+    tag: string;
+    flatNo?: string;
+    address: string;
+    pincode?: string;
+    mobileNo?: string;
+    latitude: number;
+    longitude: number;
+    isDefault?: boolean;
+}) => {
+    const res = await apiClient.post('/api/v1/user/addresses', data);
+    return res.data;
+};
+
+export const setDefaultAddress = async (addressId: number) => {
+    const res = await apiClient.put(`/api/v1/user/addresses/${addressId}/default`);
+    return res.data;
+};
+
 // ─── Shops ─────────────────────────────────────────────────────────────────────
 
 export const getAllShops = async () => {
