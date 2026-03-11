@@ -2,7 +2,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "npm run build && node dist/index.js"
+    "start": "npm run build && node dist/index.js",
+    "postinstall": "prisma generate"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

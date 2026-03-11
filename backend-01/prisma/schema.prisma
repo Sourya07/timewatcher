@@ -65,16 +65,34 @@ model ShopService {
 }
 
 model User {
-  id         Int          @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   name       String
-  email      String       @unique
+  email      String        @unique
   password   String?
-  googleId   String?      @unique
-  appleId    String?      @unique
-  isVerified Boolean      @default(false)
-  createdAt  DateTime     @default(now())
+  googleId   String?       @unique
+  appleId    String?       @unique
+  isVerified Boolean       @default(false)
+  createdAt  DateTime      @default(now())
   bookings   Booking[]
-  profile    userprofile? @relation(name: "UserToUserProfile")
+  profile    userprofile?  @relation(name: "UserToUserProfile")
+  addresses  UserAddress[]
+}
+
+model UserAddress {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag       String   // e.g., "Home", "Work", "Other"
+  
+  flatNo    String?
+  address   String
+  pincode   String?
+  mobileNo  String?
+  
+  latitude  Float
+  longitude Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model userprofile {

@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import { saveUserDetails } from "@/constants/userApi";
+import { saveNewAddress } from "@/constants/userApi";
 import BackButton from "@/components/BackButton";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,7 +22,18 @@ export default function LocationScreen() {
     const [detecting, setDetecting] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [focused, setFocused] = useState(false);
+    const [selectedTag, setSelectedTag] = useState<string>("Home");
+    const [flatNo, setFlatNo] = useState("");
+    const [pincode, setPincode] = useState("");
+    const [mobileNo, setMobileNo] = useState("");
+    
     const { colors } = useThemeStore();
+
+    const ADDRESS_TAGS = [
+        { id: "Home", icon: "home" },
+        { id: "Work", icon: "briefcase" },
+        { id: "Other", icon: "location" }
+    ];
 
     const detectLocation = async () => {
         setDetecting(true);
@@ -74,14 +85,19 @@ export default function LocationScreen() {
 
     const handleSubmit = async () => {
         if (!coords || !location) { Alert.alert("Missing info", "Please enter or detect your location."); return; }
+        if (!flatNo || !mobileNo) { Alert.alert("Required fields", "Please let us know your Flat No and Mobile Number for easy service."); return; }
+        
         setSubmitting(true);
         try {
-            await saveUserDetails({
-                image: "https://example.com/default.jpg",
+            await saveNewAddress({
+                tag: selectedTag,
+                flatNo,
+                pincode,
+                mobileNo,
+                address: location,
                 latitude: coords.latitude,
                 longitude: coords.longitude,
-                address: location,
-                mobilenumber: "please enter your mobile no",
+                isDefault: true // newly added via this flow becomes active
             });
             router.replace("/(tabs)/profile" as any);
         } catch (error: any) {
@@ -158,11 +174,81 @@ export default function LocationScreen() {
                                 </View>
                             )}
 
-                            {/* Coords confirmation */}
+-                            {/* Coords confirmation & Tag Selection */}
                             {coords && (
                                 <View style={styles.coordsConfirm}>
                                     <Ionicons name="checkmark-circle" size={16} color="#10B981" />
                                     <Text style={styles.coordsText}>Location pinned successfully</Text>
+                                </View>
+                            )}
+
+                            {/* Detailed Address Fields */}
+                            {coords && (
+                                <View style={{ marginTop: 24, gap: 16 }}>
+                                    <View>
+                                        <Text style={[styles.inputLabel, { color: colors.text }]}>House / Flat / Block No.*</Text>
+                                        <TextInput 
+                                            style={[styles.inputField, { borderColor: colors.border, color: colors.text }]}
+                                            placeholder="e.g. Flat 402, B-Wing"
+                                            placeholderTextColor={colors.textMuted}
+                                            value={flatNo}
+                                            onChangeText={setFlatNo}
+                                        />
+                                    </View>
+                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.inputLabel, { color: colors.text }]}>Pincode</Text>
+                                            <TextInput 
+                                                style={[styles.inputField, { borderColor: colors.border, color: colors.text }]}
+                                                placeholder="e.g. 400001"
+                                                placeholderTextColor={colors.textMuted}
+                                                keyboardType="numeric"
+                                                value={pincode}
+                                                onChangeText={setPincode}
+                                                maxLength={6}
+                                            />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.inputLabel, { color: colors.text }]}>Mobile No.*</Text>
+                                            <TextInput 
+                                                style={[styles.inputField, { borderColor: colors.border, color: colors.text }]}
+                                                placeholder="e.g. 9876543210"
+                                                placeholderTextColor={colors.textMuted}
+                                                keyboardType="phone-pad"
+                                                value={mobileNo}
+                                                onChangeText={setMobileNo}
+                                                maxLength={10}
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+
+                            {/* Save As Tags */}
+                            {coords && (
+                                <View style={{ marginTop: 24, marginBottom: 8 }}>
+                                    <Text style={[styles.cardTitle, { color: colors.text }]}>Save alias as</Text>
+                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                        {ADDRESS_TAGS.map((tagObj) => {
+                                            const isSelected = selectedTag === tagObj.id;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={tagObj.id}
+                                                    onPress={() => setSelectedTag(tagObj.id)}
+                                                    style={[
+                                                        styles.tagChip,
+                                                        { backgroundColor: isSelected ? colors.primary : colors.background },
+                                                        !isSelected && { borderWidth: 1, borderColor: colors.border }
+                                                    ]}
+                                                >
+                                                    <Ionicons name={tagObj.icon as any} size={16} color={isSelected ? 'white' : colors.textMuted} />
+                                                    <Text style={[styles.tagText, { color: isSelected ? 'white' : colors.text }]}>
+                                                        {tagObj.id}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
                                 </View>
                             )}
                         </ScrollView>
@@ -258,4 +344,18 @@ const styles = StyleSheet.create({
     submitBtnWrapper: { borderRadius: 16, overflow: 'hidden', shadowColor: '#1877F2', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
     submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
     submitBtnText: { color: 'white', fontSize: 16, fontWeight: '800' },
+    tagChip: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        paddingVertical: 12, borderRadius: 12,
+    },
+    tagText: { fontSize: 13, fontWeight: '600' },
+    inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
+    inputField: { 
+        borderWidth: 1.5, 
+        borderRadius: 12, 
+        paddingHorizontal: 16, 
+        paddingVertical: 14,
+        fontSize: 15,
+        backgroundColor: '#FAFAFA'
+    }
 });
