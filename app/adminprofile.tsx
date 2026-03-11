@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import {
     View, Text, Alert, ScrollView, SafeAreaView,
-    TouchableOpacity, StyleSheet, FlatList, Image
+    TouchableOpacity, StyleSheet, Image, Modal
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import CustomInput from '@/components/Custominput';
 import CustomButton from '@/components/Custombutton';
-import WheelPickerExpo from "react-native-wheel-picker-expo";
 import { createAdminShop } from '@/constants/adminApi';
 import { router } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -44,6 +43,7 @@ export default function AdminShopForm() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [occModalVisible, setOccModalVisible] = useState(false);
 
     const handleServiceChange = (id: string, field: string, value: string | number) => {
         setServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -246,14 +246,16 @@ export default function AdminShopForm() {
                     </View>
                     <View style={{ marginTop: 24 }}>
                         <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Occupation / Category</Text>
-                        <View style={[styles.pickerWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                            <WheelPickerExpo
-                                height={90}
-                                initialSelectedIndex={OCCUPATION_OPTIONS.findIndex(o => o.value === form.occupation)}
-                                items={OCCUPATION_OPTIONS}
-                                onChange={({ item }) => handleChange('occupation', item.value)}
-                            />
-                        </View>
+                        <TouchableOpacity
+                            onPress={() => setOccModalVisible(true)}
+                            style={[styles.dropdownBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={{ fontSize: 16, color: form.occupation ? colors.text : colors.textMuted, fontWeight: '500' }}>
+                                {form.occupation || 'Select Category'}
+                            </Text>
+                            <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                        </TouchableOpacity>
                     </View>
                     <View style={{ marginTop: 24 }}>
                         <CustomInput
@@ -286,13 +288,22 @@ export default function AdminShopForm() {
                                 keyboardType="numeric"
                             />
                         </View>
-                        <View style={[styles.pickerWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                            <WheelPickerExpo
-                                height={70}
-                                initialSelectedIndex={form.timeinPeriod === 'AM' ? 0 : 1}
-                                items={[{ label: 'AM', value: 'AM' }, { label: 'PM', value: 'PM' }]}
-                                onChange={({ item }) => handleChange('timeinPeriod', item.value)}
-                            />
+                        <View style={[styles.toggleWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            {['AM', 'PM'].map((period) => {
+                                const isActive = form.timeinPeriod === period;
+                                return (
+                                    <TouchableOpacity
+                                        key={period}
+                                        onPress={() => handleChange('timeinPeriod', period)}
+                                        style={[styles.toggleBtn, isActive && { backgroundColor: colors.primary }]}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.toggleText, isActive ? { color: 'white' } : { color: colors.text }]}>
+                                            {period}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
                     </View>
 
@@ -308,13 +319,22 @@ export default function AdminShopForm() {
                                 keyboardType="numeric"
                             />
                         </View>
-                        <View style={styles.pickerWrapper}>
-                            <WheelPickerExpo
-                                height={70}
-                                initialSelectedIndex={form.timeoutPeriod === 'AM' ? 0 : 1}
-                                items={[{ label: 'AM', value: 'AM' }, { label: 'PM', value: 'PM' }]}
-                                onChange={({ item }) => handleChange('timeoutPeriod', item.value)}
-                            />
+                        <View style={[styles.toggleWrapper, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            {['AM', 'PM'].map((period) => {
+                                const isActive = form.timeoutPeriod === period;
+                                return (
+                                    <TouchableOpacity
+                                        key={period}
+                                        onPress={() => handleChange('timeoutPeriod', period)}
+                                        style={[styles.toggleBtn, isActive && { backgroundColor: colors.primary }]}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.toggleText, isActive ? { color: 'white' } : { color: colors.text }]}>
+                                            {period}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
                     </View>
                 </View>
@@ -364,28 +384,35 @@ export default function AdminShopForm() {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Duration (Mins)</Text>
-                                    <View style={[styles.pickerWrapper, { height: 70, backgroundColor: colors.background, borderColor: colors.border }]}>
-                                        <WheelPickerExpo
-                                            height={70}
-                                            initialSelectedIndex={[15, 30, 45, 60, 90, 120].indexOf(svc.durationMins)}
-                                            items={[
-                                                { label: '15m', value: 15 },
-                                                { label: '30m', value: 30 },
-                                                { label: '45m', value: 45 },
-                                                { label: '60m', value: 60 },
-                                                { label: '90m', value: 90 },
-                                                { label: '120m', value: 120 }
-                                            ]}
-                                            onChange={({ item }) => handleServiceChange(svc.id, 'durationMins', item.value)}
-                                        />
-                                    </View>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+                                        {[15, 30, 45, 60, 90, 120].map((mins) => {
+                                            const isActive = svc.durationMins === mins;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={mins}
+                                                    onPress={() => handleServiceChange(svc.id, 'durationMins', mins)}
+                                                    style={{
+                                                        paddingHorizontal: 16,
+                                                        paddingVertical: 12,
+                                                        borderRadius: 12,
+                                                        backgroundColor: isActive ? colors.primary : colors.background,
+                                                        borderWidth: 1,
+                                                        borderColor: isActive ? colors.primary : colors.border,
+                                                    }}
+                                                >
+                                                    <Text style={{ fontWeight: '600', color: isActive ? 'white' : colors.text }}>
+                                                        {mins}m
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
                                 </View>
                             </View>
                         </View>
                     ))}
                 </View>
 
-                {/* Submit */}
                 <View style={styles.submitWrapper}>
                     <CustomButton
                         title={isSubmitting ? 'Creating listing…' : 'Publish Listing'}
@@ -394,6 +421,37 @@ export default function AdminShopForm() {
                     />
                 </View>
             </KeyboardAwareScrollView>
+
+            {/* Occupation Modal */}
+            <Modal visible={occModalVisible} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setOccModalVisible(false)} />
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Category</Text>
+                            <TouchableOpacity onPress={() => setOccModalVisible(false)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView contentContainerStyle={styles.modalScroll}>
+                            {OCCUPATION_OPTIONS.map((opt) => (
+                                <TouchableOpacity
+                                    key={opt.value}
+                                    onPress={() => { handleChange('occupation', opt.value); setOccModalVisible(false); }}
+                                    style={[styles.modalOption, form.occupation === opt.value && { backgroundColor: colors.primary + '1A' }]}
+                                >
+                                    <Text style={[styles.modalOptionText, { color: form.occupation === opt.value ? colors.primary : colors.text }]}>
+                                        {opt.label}
+                                    </Text>
+                                    {form.occupation === opt.value && (
+                                        <Ionicons name="checkmark" size={20} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -467,14 +525,65 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     timeRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-end' },
-    pickerWrapper: {
+    toggleWrapper: {
         flex: 1,
+        flexDirection: 'row',
         borderWidth: 1,
-        borderRadius: 16,
+        borderRadius: 12,
         overflow: 'hidden',
-        height: 70,
+        height: 52,
+    },
+    toggleBtn: {
+        flex: 1,
+        alignItems: 'center',
         justifyContent: 'center',
     },
+    toggleText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    dropdownBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        height: 56,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalDismiss: { flex: 1 },
+    modalContent: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingBottom: 40,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
+    },
+    modalTitle: { fontSize: 18, fontWeight: '800' },
+    modalCloseBtn: { padding: 4, backgroundColor: '#F3F4F6', borderRadius: 16 },
+    modalScroll: { padding: 20 },
+    modalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 8,
+    },
+    modalOptionText: { fontSize: 16, fontWeight: '600' },
     pricePreview: {
         flexDirection: 'row',
         alignItems: 'center',
