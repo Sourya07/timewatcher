@@ -25,6 +25,7 @@ export interface Shop {
     timeout: string;
     isOpen?: boolean;
     categoryId?: number;
+    category?: { id: number; name: string };
     services?: ShopService[];
 }
 

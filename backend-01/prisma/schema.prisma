@@ -51,6 +51,8 @@ model AdminShop {
   category     Category? @relation(fields: [categoryId], references: [id])
   
   services     ShopService[]
+  reviews      Review[]
+  favorites    Favorite[]
 }
 
 model ShopService {
@@ -76,6 +78,8 @@ model User {
   bookings   Booking[]
   profile    userprofile?  @relation(name: "UserToUserProfile")
   addresses  UserAddress[]
+  reviews    Review[]
+  favorites  Favorite[]
 }
 
 model UserAddress {
@@ -117,8 +121,43 @@ model Booking {
   startTime DateTime
   endTime   DateTime
   status    String   @default("upcoming") // upcoming, active, completed, cancelled
+  paymentIntentId String? // Added for Stripe
   createdAt DateTime @default(now())
 
   service   ShopService @relation(fields: [shopServiceId], references: [id], onDelete: Cascade)
   user      User        @relation(fields: [userId], references: [id])
+}
+
+model Review {
+  id        Int       @id @default(autoincrement())
+  rating    Int       // 1-5
+  comment   String?
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    Int
+  shop      AdminShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+}
+
+model Favorite {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    Int
+  shop      AdminShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, shopId])
+}
+
+model PromoCode {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique
+  discountType  String   // "percentage" or "fixed"
+  discountValue Float
+  maxUses       Int?     // null means unlimited
+  usesCount     Int      @default(0)
+  expiryDate    DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 }

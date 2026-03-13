@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FlatList, Image, Pressable, Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import { FlatList, Image, Pressable, Text, TouchableOpacity, View, StyleSheet, ScrollView } from "react-native";
 import { Fragment, useEffect, useState } from "react";
 import { router } from "expo-router";
 import * as Location from 'expo-location';
@@ -123,16 +123,49 @@ export default function Index() {
                             <Text style={styles.subtitle}>Book the services you need</Text>
                         </View>
 
-                        <TouchableOpacity
-                            style={[styles.sellerBtn, { borderColor: colors.primary, backgroundColor: colors.surface }]}
-                            onPress={() => router.replace('/(authadmin)/adminsign-in')}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="storefront-outline" size={14} color={colors.primary} />
-                            <Text style={[styles.sellerBtnText, { color: colors.primary }]}>Become a Seller</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 28 }}>
+                            <TouchableOpacity
+                                style={[styles.sellerBtn, { borderColor: colors.primary, backgroundColor: colors.surface, marginBottom: 0 }]}
+                                onPress={() => router.replace('/(authadmin)/adminsign-in')}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="storefront-outline" size={14} color={colors.primary} />
+                                <Text style={[styles.sellerBtnText, { color: colors.primary }]}>Become a Seller</Text>
+                            </TouchableOpacity>
 
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse Categories</Text>
+                            <TouchableOpacity
+                                style={[styles.sellerBtn, { borderColor: colors.primary, backgroundColor: colors.primary, marginBottom: 0 }]}
+                                onPress={() => router.push('/userflow/map')}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="map-outline" size={14} color={'#fff'} />
+                                <Text style={[styles.sellerBtnText, { color: '#fff' }]}>Map View</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 16 }]}>Popular Shops</Text>
+                        
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}>
+                            {shops.slice(0, 5).map(shop => (
+                                <TouchableOpacity 
+                                    key={shop.id} 
+                                    style={[styles.shopCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                    onPress={() => router.push(`/shops/${shop.id}`)}
+                                >
+                                    <Image source={{ uri: shop.image || 'https://via.placeholder.com/150' }} style={styles.shopImage} />
+                                    <View style={styles.shopInfo}>
+                                        <Text style={[styles.shopTitle, { color: colors.text }]} numberOfLines={1}>{shop.name || `Best ${shop.occupation}`}</Text>
+                                        <Text style={styles.shopCategory}>{shop.category?.name || shop.occupation}</Text>
+                                        <View style={styles.shopRatingRow}>
+                                            <Ionicons name="star" size={12} color="#F59E0B" />
+                                            <Text style={[styles.shopRating, { color: colors.text }]}>4.8</Text>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Explore Offers</Text>
                     </View>
                 )}
             />
@@ -166,6 +199,45 @@ const styles = StyleSheet.create({
     },
     sellerBtnText: { fontSize: 13, fontWeight: '700' },
     sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+    shopCard: {
+        width: 160,
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    shopImage: {
+        width: '100%',
+        height: 100,
+        backgroundColor: '#e5e7eb',
+    },
+    shopInfo: {
+        padding: 12,
+    },
+    shopTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    shopCategory: {
+        fontSize: 12,
+        color: '#6366f1',
+        fontWeight: '500',
+        marginBottom: 6,
+    },
+    shopRatingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    shopRating: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
     card: {
         width: '100%',
         height: 160,
