@@ -61,7 +61,7 @@ export const useShopStore = create<ShopState>((set, get) => ({
             set({ shops, loading: false });
             return shops;
         } catch (error: any) {
-            set({ error: error.message || "Failed to fetch shops", loading: false });
+            set({ error: error.message || "Failed to fetch shop", loading: false });
             return [];
         }
     },
