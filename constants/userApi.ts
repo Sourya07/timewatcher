@@ -33,6 +33,11 @@ export const userSignout = async () => {
     await SecureStore.deleteItemAsync('usertoken');
 };
 
+export const registerUserPushToken = async (pushToken: string) => {
+    const res = await apiClient.post('/api/v1/notifications/register-user-token', { pushToken });
+    return res.data;
+};
+
 // ─── User Profile ──────────────────────────────────────────────────────────────
 
 export const getUserProfile = async () => {

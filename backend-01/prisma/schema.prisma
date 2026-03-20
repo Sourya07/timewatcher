@@ -23,6 +23,7 @@ model Admin {
   googleId     String?     @unique
   appleId      String?     @unique
   isVerified   Boolean     @default(false)
+  pushToken    String?
   adminprofile AdminShop[]
 }
 
@@ -44,6 +45,8 @@ model AdminShop {
   timein       String
   timeout      String
   isOpen       Boolean   @default(true)
+  verificationStatus String @default("pending") // pending, approved, rejected
+  rejectionReason    String? // reason when rejected by SuperAdmin
   AdminId      Int
   Admin        Admin     @relation(fields: [AdminId], references: [id])
   
@@ -53,6 +56,7 @@ model AdminShop {
   services     ShopService[]
   reviews      Review[]
   favorites    Favorite[]
+  images       ShopImage[]
 }
 
 model ShopService {
@@ -74,6 +78,7 @@ model User {
   googleId   String?       @unique
   appleId    String?       @unique
   isVerified Boolean       @default(false)
+  pushToken  String?
   createdAt  DateTime      @default(now())
   bookings   Booking[]
   profile    userprofile?  @relation(name: "UserToUserProfile")
@@ -160,4 +165,20 @@ model PromoCode {
   expiryDate    DateTime?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
+}
+
+model SuperAdmin {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model ShopImage {
+  id        Int       @id @default(autoincrement())
+  url       String
+  shopId    Int
+  shop      AdminShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
 }

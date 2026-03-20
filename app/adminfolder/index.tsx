@@ -24,6 +24,8 @@ type AdminShop = {
     isOpen: boolean;
     slotDuration: number;
     id: number;
+    verificationStatus: 'pending' | 'approved' | 'rejected';
+    rejectionReason?: string;
 };
 
 export default function AdminShopsScreen() {
@@ -86,6 +88,13 @@ export default function AdminShopsScreen() {
                     </View>
                     <View style={{ flexDirection: 'row', gap: 12 }}>
                         <TouchableOpacity
+                            style={[styles.addBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
+                            onPress={() => router.push('/adminfolder/dashboard')}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
                             style={[styles.addBtn, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
                             onPress={() => router.push('/adminprofile')}
                             activeOpacity={0.8}
@@ -141,6 +150,33 @@ export default function AdminShopsScreen() {
                                 <Text style={[styles.shopOccupation, { color: colors.text }]}>{shop.occupation}</Text>
                                 <Text style={[styles.shopSpecialization, { color: colors.textMuted }]}>{shop.speclization}</Text>
 
+                                {/* Verification Status Badge */}
+                                <View style={[
+                                    styles.verificationBadge,
+                                    shop.verificationStatus === 'pending' && { backgroundColor: '#FEF3C7' },
+                                    shop.verificationStatus === 'approved' && { backgroundColor: '#D1FAE5' },
+                                    shop.verificationStatus === 'rejected' && { backgroundColor: '#FEE2E2' },
+                                ]}>
+                                    <Ionicons
+                                        name={shop.verificationStatus === 'approved' ? 'checkmark-circle' : shop.verificationStatus === 'rejected' ? 'close-circle' : 'time'}
+                                        size={14}
+                                        color={shop.verificationStatus === 'approved' ? '#059669' : shop.verificationStatus === 'rejected' ? '#DC2626' : '#D97706'}
+                                    />
+                                    <Text style={[
+                                        styles.verificationText,
+                                        shop.verificationStatus === 'pending' && { color: '#D97706' },
+                                        shop.verificationStatus === 'approved' && { color: '#059669' },
+                                        shop.verificationStatus === 'rejected' && { color: '#DC2626' },
+                                    ]}>
+                                        {shop.verificationStatus === 'pending' ? 'Under Review' : shop.verificationStatus === 'approved' ? 'Verified' : 'Rejected'}
+                                    </Text>
+                                </View>
+                                {shop.verificationStatus === 'rejected' && shop.rejectionReason && (
+                                    <Text style={{ fontSize: 12, color: '#DC2626', marginTop: 4, fontStyle: 'italic' }}>
+                                        Reason: {shop.rejectionReason}
+                                    </Text>
+                                )}
+
                                 <View style={styles.shopRow}>
                                     <Ionicons name="location-outline" size={14} color={colors.textMuted} />
                                     <Text style={[styles.shopMeta, { color: colors.textMuted }]} numberOfLines={1}>
@@ -167,22 +203,33 @@ export default function AdminShopsScreen() {
                                     </View>
                                 </View>
 
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <Text
-                                        style={{
-                                            fontSize: 12,
-                                            fontWeight: '600',
-                                            color: shop.isOpen ? '#059669' : '#DC2626',
-                                        }}
+                                <View style={styles.actionRow}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Text
+                                            style={{
+                                                fontSize: 12,
+                                                fontWeight: '600',
+                                                color: shop.isOpen ? '#059669' : '#DC2626',
+                                            }}
+                                        >
+                                            {shop.isOpen ? 'Accepting Bookings' : 'Closed'}
+                                        </Text>
+                                        <Switch
+                                            value={shop.isOpen}
+                                            onValueChange={() => toggleShopStatus(shop.id, shop.isOpen)}
+                                            trackColor={{ false: '#FECACA', true: '#D1FAE5' }}
+                                            thumbColor={shop.isOpen ? '#10B981' : '#EF4444'}
+                                        />
+                                    </View>
+                                    
+                                    <TouchableOpacity
+                                        style={[styles.calendarBtn, { backgroundColor: colors.primary }]}
+                                        onPress={() => router.push(`/adminfolder/${shop.id}/calendar`)}
+                                        activeOpacity={0.8}
                                     >
-                                        {shop.isOpen ? 'Accepting Bookings' : 'Closed'}
-                                    </Text>
-                                    <Switch
-                                        value={shop.isOpen}
-                                        onValueChange={() => toggleShopStatus(shop.id, shop.isOpen)}
-                                        trackColor={{ false: '#FECACA', true: '#D1FAE5' }}
-                                        thumbColor={shop.isOpen ? '#10B981' : '#EF4444'}
-                                    />
+                                        <Ionicons name="calendar-outline" size={16} color="white" />
+                                        <Text style={styles.calendarBtnText}>View Schedule</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
                         </View>
@@ -240,4 +287,40 @@ const styles = StyleSheet.create({
     createBtn: { borderRadius: 16, overflow: 'hidden', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
     createBtnGradient: { paddingVertical: 16, paddingHorizontal: 32 },
     createBtnText: { color: 'white', fontSize: 16, fontWeight: '700' },
+    verificationBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: 'flex-start',
+        marginBottom: 10,
+    },
+    verificationText: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    actionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: 12,
+        marginTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0,0,0,0.05)'
+    },
+    calendarBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 8,
+        gap: 6
+    },
+    calendarBtnText: {
+        color: 'white',
+        fontSize: 13,
+        fontWeight: '600'
+    }
 });

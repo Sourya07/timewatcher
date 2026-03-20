@@ -10,7 +10,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
-import { userAppleSignin, userGoogleSignin } from '@/constants/userApi';
+import { userAppleSignin, userGoogleSignin, registerUserPushToken } from '@/constants/userApi';
+import { registerForPushNotificationsAsync } from '@/app/utils/pushNotifications';
 import { useEffect } from 'react';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -48,6 +49,10 @@ const UserSignInScreen = () => {
         setSubmitting(true);
         try {
             await userGoogleSignin(idToken);
+            try {
+                const pushToken = await registerForPushNotificationsAsync();
+                if (pushToken) await registerUserPushToken(pushToken);
+            } catch (ignored) {}
             router.replace('/userflow/setting');
         } catch (error: any) {
             Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
@@ -69,6 +74,10 @@ const UserSignInScreen = () => {
                 ? `${credential.fullName.givenName} ${credential.fullName.familyName || ''}`.trim() 
                 : undefined;
             await userAppleSignin(credential.identityToken!, name);
+            try {
+                const pushToken = await registerForPushNotificationsAsync();
+                if (pushToken) await registerUserPushToken(pushToken);
+            } catch (ignored) {}
             router.replace('/userflow/setting');
         } catch (e: any) {
             if (e.code !== 'ERR_REQUEST_CANCELED') {
@@ -93,6 +102,10 @@ const UserSignInScreen = () => {
         setSubmitting(true);
         try {
             await userSignin(form.email, form.password);
+            try {
+                const pushToken = await registerForPushNotificationsAsync();
+                if (pushToken) await registerUserPushToken(pushToken);
+            } catch (ignored) {}
             router.replace('/userflow/setting');
         } catch (error: any) {
             Alert.alert('Sign in Failed', error.message);

@@ -301,8 +301,9 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
         timein,
         timeout,
         isOpen,
-        categoryName, // newly added
-        services      // newly added, array of { name, price, durationMins, description }
+        categoryName,
+        images, // Array of strings for gallery
+        services
     } = req.body;
 
     try {
@@ -336,6 +337,7 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
                 timein,
                 timeout,
                 isOpen: isOpen ?? true,
+                verificationStatus: 'pending', // Requires SuperAdmin approval
                 Admin: { connect: { id: adminId } },
                 ...(categoryId && { category: { connect: { id: categoryId } } }),
                 // Create nested services
@@ -348,15 +350,25 @@ router.post('/adminshop', verifyAdminToken, async (req, res) => {
                             description: s.description || null
                         }))
                     }
+                }),
+                // Create nested gallery images
+                ...(images && Array.isArray(images) && images.length > 0 && {
+                    images: {
+                        create: images.map((url: string) => ({ url }))
+                    }
                 })
             },
             include: {
                 services: true,
-                category: true
+                category: true,
+                images: true
             }
         });
 
-        return res.status(201).json({ shop: newShop });
+        return res.status(201).json({
+            shop: newShop,
+            message: 'Shop created successfully! It will be visible to users after verification by our team.'
+        });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: 'Something went wrong' });
@@ -372,7 +384,8 @@ router.get('/adminshops', verifyAdminToken, async (req, res) => {
             },
             include: {
                 services: true,
-                category: true
+                category: true,
+                images: true
             }
         });
 
@@ -413,6 +426,36 @@ router.patch('/adminshop/:id/settings', verifyAdminToken, async (req, res) => {
 
     } catch (error) {
         console.error("Error updating shop settings:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// Get bookings for a specific admin shop
+router.get('/adminshop/:id/bookings', verifyAdminToken, async (req, res) => {
+    try {
+        const shopId = Number(req.params.id);
+        const adminId = Number(req.user?.id);
+
+        // Verify the shop belongs to this admin
+        const shop = await prisma.adminShop.findUnique({ where: { id: shopId } });
+        if (!shop) return res.status(404).json({ error: "Shop not found" });
+        if (shop.AdminId !== adminId) return res.status(403).json({ error: "Unauthorized" });
+
+        // Get all bookings across all services for this shop
+        const bookings = await prisma.booking.findMany({
+            where: {
+                service: { shopId: shopId },
+            },
+            include: {
+                user: { select: { id: true, name: true, email: true } },
+                service: { select: { name: true } }
+            },
+            orderBy: { startTime: 'asc' } // chronological order for the calendar
+        });
+
+        res.status(200).json(bookings);
+    } catch (error) {
+        console.error("Error fetching shop bookings:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 });
