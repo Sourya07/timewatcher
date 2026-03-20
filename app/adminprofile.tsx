@@ -130,6 +130,7 @@ export default function AdminShopForm() {
                 timeout: `${form.timeoutHour} ${form.timeoutPeriod}`,
                 isOpen: true,
                 categoryName: form.occupation,
+                images: form.image ? [form.image] : [],
                 services: services.map(s => ({
                     name: s.name,
                     price: Number(s.price),

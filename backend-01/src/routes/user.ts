@@ -336,11 +336,14 @@ router.get("/", verifyToken, async (req, res) => {
 router.get('/adminshops', async (req, res) => {
     try {
         const shops = await prisma.adminShop.findMany({
+            where: { verificationStatus: 'approved' }, // Only show approved shops to users
             include: {
                 services: true,
-                category: true
+                category: true,
+                // @ts-ignore
+                images: true
             }
-        }); // no filter -> all shops
+        });
         return res.status(200).json({ shops });
     } catch (error) {
         console.error('Error fetching shops:', error);
@@ -662,23 +665,28 @@ router.get('/feed/home', async (req, res) => {
     try {
         // In a real prod environment, 'recommended' would use ML or user vectors.
         // For now, return the most recently added shops as 'new' and highest reviews as 'topRated'
-        
-        const latestShops = await prisma.adminShop.findMany({
-            where: { isOpen: true },
+        const latestShops = (await prisma.adminShop.findMany({
+            where: { isOpen: true, verificationStatus: 'approved' },
             take: 10,
             orderBy: { id: 'desc' },
-            include: { category: true, reviews: true, services: true }
-        });
+            include: { category: true, reviews: true, services: true,
+                // @ts-ignore
+                images: true 
+            }
+        })) as any;
 
         // Get top rated based on reviews or just generic shops if no reviews exist yet
-        const popularShops = await prisma.adminShop.findMany({
-            where: { isOpen: true },
+        const popularShops = (await prisma.adminShop.findMany({
+            where: { isOpen: true, verificationStatus: 'approved' },
             take: 10,
-            include: { category: true, reviews: true, services: true } // Cannot easily aggregate orderBy with average in Prisma without raw queries, so we sort in memory for simplicity over a limited subset, or just return random/popular
-        });
+            include: { category: true, reviews: true, services: true,
+                // @ts-ignore
+                images: true 
+            } 
+        })) as any;
 
         // Sort popularShops by average review dynamically 
-        popularShops.sort((a, b) => {
+        popularShops.sort((a: any, b: any) => {
             const avgA = a.reviews.length > 0 ? a.reviews.reduce((acc: number, crr: any) => acc + crr.rating, 0) / a.reviews.length : 0;
             const avgB = b.reviews.length > 0 ? b.reviews.reduce((acc: number, crr: any) => acc + crr.rating, 0) / b.reviews.length : 0;
             return avgB - avgA;
@@ -697,7 +705,7 @@ router.get('/search/shops', async (req, res) => {
         const { query, categoryId, minPrice, maxPrice } = req.query;
 
         // Base where clause
-        let whereClause: any = { isOpen: true };
+        let whereClause: any = { isOpen: true, verificationStatus: 'approved' };
 
         if (query) {
             whereClause.OR = [
@@ -725,7 +733,10 @@ router.get('/search/shops', async (req, res) => {
 
         const shops = await prisma.adminShop.findMany({
              where: whereClause,
-             include: { category: true, services: true, reviews: true }
+             include: { category: true, services: true, reviews: true,
+                // @ts-ignore
+                images: true 
+             }
         });
 
         res.status(200).json({ results: shops });

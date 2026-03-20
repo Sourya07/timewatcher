@@ -58,15 +58,8 @@ export default function Cart() {
 
     const categorizeBooking = (booking: any) => {
         if (!booking.booked || booking.status === 'cancelled') return 'Cancelled';
-
-        try {
-            const endTimeObj = new Date(booking.endTime);
-            const now = new Date();
-            
-            return now <= endTimeObj ? 'Active' : 'Completed';
-        } catch(e) {
-            return 'Completed';
-        }
+        if (booking.status === 'completed') return 'Completed';
+        return 'Active'; // 'upcoming' from backend
     };
 
     const handleCancel = (bookingId: number) => {
@@ -316,6 +309,17 @@ export default function Cart() {
                                     </Text>
                                 </TouchableOpacity>
                                 
+                                {activeTab === 'Active' && (
+                                    <TouchableOpacity
+                                        style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.background, alignItems: 'center', borderWidth: 1, borderColor: colors.primary }}
+                                        onPress={() => router.push(`/shops/${order.service?.shop?.id}` as any)}
+                                    >
+                                        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 14 }}>
+                                            Reschedule
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
                                 <TouchableOpacity
                                     style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: activeTab === 'Active' ? colors.primary : colors.text, alignItems: 'center' }}
                                     onPress={() => activeTab === 'Active' ? setSelectedBooking(order) : router.push(`/shops/${order.service?.shop?.id}` as any)}

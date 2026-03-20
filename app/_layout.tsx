@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import { useThemeStore } from '@/Store/themeStore';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import './globals.css';
 
 export default function RootLayout() {
@@ -22,11 +23,13 @@ export default function RootLayout() {
   }, [hydrateTheme]);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    />
+    <ErrorBoundary>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+    </ErrorBoundary>
   );
 }

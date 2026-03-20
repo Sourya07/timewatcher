@@ -11,6 +11,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
+import { registerAdminPushToken } from '@/constants/adminApi';
+import { registerForPushNotificationsAsync } from '@/app/utils/pushNotifications';
 
 const Signin = () => {
     const { colors } = useThemeStore();
@@ -47,6 +49,10 @@ const Signin = () => {
             const res = await apiClient.post('/api/v1/admin/google', { idToken });
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', res.data.token);
+            try {
+                const pushToken = await registerForPushNotificationsAsync();
+                if (pushToken) await registerAdminPushToken(pushToken);
+            } catch (ignored) {}
             router.replace('/adminfolder' as any);
         } catch (error: any) {
             Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
@@ -70,6 +76,10 @@ const Signin = () => {
             const res = await apiClient.post('/api/v1/admin/apple', { idToken: credential.identityToken, name });
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', res.data.token);
+            try {
+                const pushToken = await registerForPushNotificationsAsync();
+                if (pushToken) await registerAdminPushToken(pushToken);
+            } catch (ignored) {}
             router.replace('/adminfolder' as any);
         } catch (e: any) {
             if (e.code !== 'ERR_REQUEST_CANCELED') {
@@ -108,9 +118,12 @@ const Signin = () => {
         try {
             const response = await apiClient.post('/api/v1/admin/signin', form);
             const { token } = response.data;
-            // Clear any legacy 'token' key that may still contain a stale admin token
             await SecureStore.deleteItemAsync('token');
             await SecureStore.setItemAsync('admintoken', token);
+            try {
+                const pushToken = await registerForPushNotificationsAsync();
+                if (pushToken) await registerAdminPushToken(pushToken);
+            } catch (ignored) {}
             router.replace('/adminfolder' as any);
         } catch (error: any) {
             const message = error.response?.data?.error || error.message || 'Something went wrong';

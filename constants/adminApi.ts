@@ -12,10 +12,16 @@ export const adminSignin = async (email: string, password: string) => {
     return res.data; // { token }
 };
 
+export const registerAdminPushToken = async (pushToken: string) => {
+    const res = await apiClient.post('/api/v1/notifications/register-admin-token', { pushToken });
+    return res.data;
+};
+
 // ─── Admin Shop ────────────────────────────────────────────────────────────────
 
 export interface AdminShopPayload {
     image: string;
+    images?: string[];
     latitude: number | null;
     longitude: number | null;
     address: string;
@@ -40,5 +46,10 @@ export const createAdminShop = async (payload: AdminShopPayload) => {
 
 export const updateAdminShopSettings = async (shopId: number, settings: { isOpen?: boolean }) => {
     const res = await apiClient.patch(`/api/v1/admin/adminshop/${shopId}/settings`, settings);
+    return res.data;
+};
+
+export const getAdminShopBookings = async (shopId: number) => {
+    const res = await apiClient.get(`/api/v1/admin/adminshop/${shopId}/bookings`);
     return res.data;
 };

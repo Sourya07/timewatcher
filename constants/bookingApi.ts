@@ -31,3 +31,8 @@ export const cancelBooking = async (bookingId: number) => {
     const res = await apiClient.delete(`/api/v1/booking/${bookingId}`);
     return res.data;
 };
+
+export const rescheduleBooking = async (bookingId: number, data: { bookingStart: string; bookingEnd: string }) => {
+    const res = await apiClient.patch(`/api/v1/booking/${bookingId}/reschedule`, data);
+    return res.data;
+};
