@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, ActivityIndicator, Pressable, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, ActivityIndicator, Pressable, Alert, TouchableOpacity, StyleSheet, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useShopStore, ShopService } from '@/Store/shopstore';
@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getShopSlots, createBooking } from '@/constants/bookingApi';
 import { useThemeStore } from '@/Store/themeStore';
 import BackButton from '@/components/BackButton';
+import apiClient from '@/constants/axiosInstance';
 
 const GOOGLE_MAPS_APIKEY = "AIzaSyA97WCu7Ld0sSnNWbgAfEouBfRqXSB8dnw";
 
@@ -39,6 +40,81 @@ export default function ShopDetails() {
     const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
     const [selectedService, setSelectedService] = useState<ShopService | null>(null);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [averageRating, setAverageRating] = useState(0);
+    const [isEligibleToReview, setIsEligibleToReview] = useState(false);
+
+    const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+    const [reviewRating, setReviewRating] = useState(0);
+    const [reviewComment, setReviewComment] = useState("");
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+    useEffect(() => {
+        if (!shop) return;
+        const fetchShopData = async () => {
+            try {
+                const reviewsRes = await apiClient.get(`/api/v1/user/reviews/${shop.id}`);
+                setReviews(reviewsRes.data.reviews || []);
+                setAverageRating(reviewsRes.data.averageRating || 0);
+
+                const favsRes = await apiClient.get('/api/v1/user/favorites');
+                const favs = favsRes.data || [];
+                setIsFavorite(favs.some((f: any) => f.shopId === shop.id));
+
+                try {
+                    const eligRes = await apiClient.get(`/api/v1/user/reviews/eligibility/${shop.id}`);
+                    setIsEligibleToReview(eligRes.data.eligible);
+                } catch (e) {
+                    console.log("Eligibility check failed", e);
+                }
+            } catch (err) {
+                console.log("Failed to fetch shop data:", err);
+            }
+        };
+        fetchShopData();
+    }, [shop?.id]);
+
+    const handleToggleFavorite = async () => {
+        setIsFavorite(!isFavorite); 
+        try {
+            await apiClient.post('/api/v1/user/favorites', { shopId: shop.id });
+        } catch (error) {
+            setIsFavorite(!isFavorite); 
+            console.error("Failed to toggle favorite", error);
+        }
+    };
+
+    const submitReview = async () => {
+        if (reviewRating === 0) {
+            Alert.alert("Rating Required", "Please select a star rating.");
+            return;
+        }
+        if (!reviewComment.trim()) {
+            Alert.alert("Comment Required", "Please write a short review.");
+            return;
+        }
+        setIsSubmittingReview(true);
+        try {
+            await apiClient.post('/api/v1/user/reviews', {
+                shopId: shop.id,
+                rating: reviewRating,
+                comment: reviewComment
+            });
+            Alert.alert("Success", "Your review has been submitted!");
+            setIsReviewModalVisible(false);
+            setReviewRating(0);
+            setReviewComment("");
+            const reviewsRes = await apiClient.get(`/api/v1/user/reviews/${shop.id}`);
+            setReviews(reviewsRes.data.reviews || []);
+            setAverageRating(reviewsRes.data.averageRating || 0);
+        } catch (error: any) {
+            Alert.alert("Error", error?.response?.data?.error || "Failed to submit review.");
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
 
     // Auto-select first service if available
     useEffect(() => {
@@ -119,6 +195,9 @@ export default function ShopDetails() {
                         {shop.address ? shop.address.split(" ").slice(0, 4).join(" ") : "Location"}
                     </Text>
                 </View>
+                <TouchableOpacity onPress={handleToggleFavorite} style={styles.favoriteBtn}>
+                    <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={26} color={isFavorite ? "#EF4444" : colors.text} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -165,38 +244,49 @@ export default function ShopDetails() {
                 </View>
 
                 {/* Map */}
-                <View style={[styles.mapCard, { backgroundColor: colors.surface }]}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>📍 Location & Route</Text>
-                    <View style={styles.mapWrapper}>
-                        <MapView
-                            style={{ flex: 1 }}
-                            initialRegion={{
-                                latitude: (userLocation.latitude + shop.latitude) / 2,
-                                longitude: (userLocation.longitude + shop.longitude) / 2,
-                                latitudeDelta: Math.abs(userLocation.latitude - shop.latitude) + 0.05,
-                                longitudeDelta: Math.abs(userLocation.longitude - shop.longitude) + 0.05,
-                            }}
-                        >
-                            <Marker coordinate={userLocation} title="You" pinColor="red" />
-                            <Marker coordinate={{ latitude: shop.latitude, longitude: shop.longitude }} title={shop.occupation || "Shop"}>
-                                <View style={styles.shopMarker}>
-                                    <Image
-                                        source={{ uri: shop.image || 'https://via.placeholder.com/60' }}
-                                        style={styles.shopMarkerImage}
-                                    />
-                                </View>
-                            </Marker>
-                            <MapViewDirections
-                                origin={userLocation}
-                                destination={{ latitude: shop.latitude, longitude: shop.longitude }}
-                                apikey={GOOGLE_MAPS_APIKEY}
-                                strokeWidth={4}
-                                strokeColor={colors.primary}
-                            />
-                        </MapView>
+                {(shop.latitude && shop.longitude) ? (
+                    <View style={[styles.mapCard, { backgroundColor: colors.surface }]}>
+                        <Text style={[styles.cardTitle, { color: colors.text }]}>📍 Location & Route</Text>
+                        <View style={styles.mapWrapper}>
+                            <MapView
+                                style={{ flex: 1 }}
+                                initialRegion={{
+                                    latitude: (userLocation.latitude + shop.latitude) / 2,
+                                    longitude: (userLocation.longitude + shop.longitude) / 2,
+                                    latitudeDelta: Math.abs(userLocation.latitude - shop.latitude) + 0.05,
+                                    longitudeDelta: Math.abs(userLocation.longitude - shop.longitude) + 0.05,
+                                }}
+                            >
+                                <Marker coordinate={userLocation} title="You" pinColor="red" />
+                                <Marker coordinate={{ latitude: shop.latitude, longitude: shop.longitude }} title={shop.occupation || "Shop"}>
+                                    <View style={styles.shopMarker}>
+                                        <Image
+                                            source={{ uri: shop.image || 'https://via.placeholder.com/60' }}
+                                            style={styles.shopMarkerImage}
+                                        />
+                                    </View>
+                                </Marker>
+                                <MapViewDirections
+                                    origin={userLocation}
+                                    destination={{ latitude: shop.latitude, longitude: shop.longitude }}
+                                    apikey={GOOGLE_MAPS_APIKEY}
+                                    strokeWidth={4}
+                                    strokeColor={colors.primary}
+                                />
+                            </MapView>
+                        </View>
+                        <Text style={[styles.addressText, { color: colors.textMuted }]}>{shop.address}</Text>
                     </View>
-                    <Text style={[styles.addressText, { color: colors.textMuted }]}>{shop.address}</Text>
-                </View>
+                ) : (
+                    <View style={[styles.mapCard, { backgroundColor: colors.surface }]}>
+                        <Text style={[styles.cardTitle, { color: colors.text }]}>📍 Location</Text>
+                        <Text style={[styles.addressText, { color: colors.textMuted, marginBottom: 8 }]}>{shop.address || "No address provided."}</Text>
+                        <View style={[styles.mapWrapper, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }]}>
+                            <Ionicons name="map-outline" size={48} color={colors.textMuted} />
+                            <Text style={{ color: colors.textMuted, marginTop: 8 }}>Map not available for this shop</Text>
+                        </View>
+                    </View>
+                )}
 
                 {/* Services Menu */}
                 {shop.services && shop.services.length > 0 && (
@@ -301,6 +391,40 @@ export default function ShopDetails() {
                     </Text>
                 </View>
 
+                {/* Reviews Section */}
+                <View style={[styles.aboutCard, { backgroundColor: colors.surface, marginTop: 12 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>⭐ Reviews ({reviews.length})</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <Ionicons name="star" size={16} color="#F59E0B" />
+                                <Text style={{ fontWeight: '700', color: colors.text }}>{averageRating.toFixed(1)}</Text>
+                            </View>
+                            {isEligibleToReview && (
+                                <TouchableOpacity onPress={() => setIsReviewModalVisible(true)} style={[styles.reviewBtn, { backgroundColor: colors.primary + '15' }]}>
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Write Review</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                    {reviews.slice(0, 3).map((rev, i) => (
+                        <View key={i} style={{ borderBottomWidth: i < reviews.length - 1 && i < 2 ? 1 : 0, borderBottomColor: colors.border, paddingBottom: 12, marginBottom: i < 2 ? 12 : 0 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <Text style={{ fontWeight: '600', color: colors.text }}>{rev.user?.name || 'User'}</Text>
+                                <View style={{ flexDirection: 'row' }}>
+                                    {[...Array(5)].map((_, idx) => (
+                                        <Ionicons key={idx} name={idx < rev.rating ? "star" : "star-outline"} size={12} color="#F59E0B" />
+                                    ))}
+                                </View>
+                            </View>
+                            <Text style={{ color: colors.textMuted, fontSize: 13 }}>{rev.comment}</Text>
+                        </View>
+                    ))}
+                    {reviews.length === 0 && (
+                        <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic' }}>No reviews yet. Be the first to book and review!</Text>
+                    )}
+                </View>
+
                 {/* Spacer for sticky button */}
                 <View style={{ height: 100 }} />
             </ScrollView>
@@ -319,6 +443,53 @@ export default function ShopDetails() {
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
+
+            {/* Review Modal */}
+            <Modal
+                transparent
+                visible={isReviewModalVisible}
+                animationType="fade"
+                onRequestClose={() => setIsReviewModalVisible(false)}
+            >
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Rate & Review</Text>
+                        
+                        <View style={styles.starContainer}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                                    <Ionicons name={star <= reviewRating ? "star" : "star-outline"} size={40} color="#F59E0B" />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <Text style={{ textAlign: 'center', color: colors.textMuted, marginBottom: 16 }}>Tap a star to rate</Text>
+
+                        <TextInput
+                            style={[styles.modalInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                            placeholder="Share your experience..."
+                            placeholderTextColor={colors.textMuted}
+                            value={reviewComment}
+                            onChangeText={setReviewComment}
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                        />
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity onPress={() => setIsReviewModalVisible(false)} style={[styles.modalCancelBtn, { borderColor: colors.border }]} disabled={isSubmittingReview}>
+                                <Text style={[styles.modalCancelText, { color: colors.textMuted }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={submitReview} style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]} disabled={isSubmittingReview}>
+                                {isSubmittingReview ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={styles.modalSubmitText}>Submit Review</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -337,6 +508,10 @@ const styles = StyleSheet.create({
     backBtn: {
         width: 38, height: 38, borderRadius: 19,
         alignItems: 'center', justifyContent: 'center', marginRight: 12,
+    },
+    favoriteBtn: {
+        width: 38, height: 38, borderRadius: 19,
+        alignItems: 'center', justifyContent: 'center', marginLeft: 12,
     },
     locationInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
     locationText: { fontSize: 14, color: '#374151', fontWeight: '600', flex: 1 },
@@ -428,5 +603,18 @@ const styles = StyleSheet.create({
     slotChipText: { fontSize: 13, fontWeight: '700', color: '#0369A1' },
     slotChipTextBooked: { color: '#EF4444', textDecorationLine: 'line-through' },
     slotChipTextSelected: { color: 'white' },
+    
+    // Review Modal Styles
+    reviewBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
+    modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalContent: { width: '100%', borderRadius: 24, padding: 24, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
+    modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 16 },
+    starContainer: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 },
+    modalInput: { borderWidth: 1, borderRadius: 12, padding: 16, fontSize: 15, height: 120, marginBottom: 24 },
+    modalActions: { flexDirection: 'row', gap: 12 },
+    modalCancelBtn: { flex: 1, borderWidth: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+    modalCancelText: { fontWeight: '700', fontSize: 15 },
+    modalSubmitBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+    modalSubmitText: { color: 'white', fontWeight: '700', fontSize: 15 },
 });
 

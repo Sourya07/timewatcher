@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '../middleware/usermiddleware';
+import { sendPushNotification } from './notifications';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -184,7 +185,7 @@ router.post('/', verifyToken, async (req, res) => {
         }
 
         // 3️⃣ Create booking
-        const booking = await prisma.booking.create({
+        const booking: any = await prisma.booking.create({
             data: {
                 shopServiceId,
                 duration,
@@ -201,7 +202,7 @@ router.post('/', verifyToken, async (req, res) => {
                         shop: {
                             select: {
                                 occupation: true,
-                                Admin: { select: { name: true, email: true } }
+                                Admin: { select: { name: true, email: true, pushToken: true } }
                             }
                         }
                     }
@@ -214,7 +215,18 @@ router.post('/', verifyToken, async (req, res) => {
 
         // 4️⃣ Optional: Notify admin
         const adminEmail = booking.service.shop.Admin.email;
+        const pushToken = booking.service.shop.Admin.pushToken;
         console.log(`📢 Notify admin ${adminEmail}: ${booking.user.name} booked from ${bookingStart} to ${bookingEnd}`);
+        
+        if (pushToken) {
+            // Background notification
+            sendPushNotification(
+                pushToken,
+                "New Booking Received! 🎉",
+                `${booking.user.name} just booked a ${booking.duration}m session.`,
+                { bookingId: booking.id }
+            );
+        }
 
         res.status(201).json({
             message: "Booking created successfully",
@@ -264,7 +276,31 @@ router.get('/', verifyToken, async (req, res) => {
             }
         });
 
-        res.status(200).json(bookings);
+        // Auto-transition upcoming bookings that are in the past to 'completed'
+        const now = new Date();
+        let needsUpdate = false;
+        
+        const currentBookings = bookings.map(booking => {
+            if (booking.status === 'upcoming' && new Date(booking.endTime) < now) {
+                needsUpdate = true;
+                return { ...booking, status: 'completed' };
+            }
+            return booking;
+        });
+
+        if (needsUpdate) {
+            // Update db async, no need to block the response
+            prisma.booking.updateMany({
+                where: {
+                    userId,
+                    status: 'upcoming',
+                    endTime: { lt: now }
+                },
+                data: { status: 'completed' }
+            }).catch(console.error);
+        }
+
+        res.status(200).json(currentBookings);
     } catch (error: any) {
         console.error("Error fetching bookings:", error);
         res.status(500).json({
@@ -280,9 +316,18 @@ router.delete('/:id', verifyToken, async (req, res) => {
         const bookingId = Number(req.params.id);
         const userId = Number(req.user?.id);
 
-        const booking = await prisma.booking.findUnique({
-            where: { id: bookingId }
-        });
+        const booking = (await prisma.booking.findUnique({
+            where: { id: bookingId },
+            include: {
+                user: { select: { name: true } },
+                service: {
+                    include: { shop: { select: { Admin: { select: { 
+                        // @ts-ignore
+                        pushToken: true 
+                    } } } } }
+                }
+            }
+        })) as any;
 
         if (!booking) {
             return res.status(404).json({ message: "Booking not found" });
@@ -294,13 +339,118 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
         const updatedBooking = await prisma.booking.update({
             where: { id: bookingId },
-            data: { booked: false }
+            data: { 
+                booked: false,
+                status: 'cancelled' 
+            }
         });
+
+        const adminPushToken = booking.service.shop.Admin.pushToken;
+        if (adminPushToken) {
+            // Background notification
+            sendPushNotification(
+                adminPushToken,
+                "Booking Cancelled ❌",
+                `${booking.user.name} has cancelled their booking.`,
+                { bookingId }
+            );
+        }
 
         res.status(200).json({ message: "Booking cancelled successfully", booking: updatedBooking });
     } catch (error: any) {
         console.error("Error cancelling booking:", error);
         res.status(500).json({ message: "Failed to cancel booking", error: error.message });
+    }
+});
+
+// PATCH (Reschedule) a booking
+router.patch('/:id/reschedule', verifyToken, async (req, res) => {
+    try {
+        const bookingId = Number(req.params.id);
+        const userId = Number(req.user?.id);
+        const { bookingStart, bookingEnd } = req.body;
+
+        if (!bookingStart || !bookingEnd) {
+            return res.status(400).json({ message: "bookingStart and bookingEnd are required" });
+        }
+
+        const startDt = new Date(bookingStart);
+        const endDt = new Date(bookingEnd);
+        const now = new Date();
+
+        if (startDt < now) {
+            return res.status(400).json({ message: "Cannot reschedule to a past time slot." });
+        }
+        if (endDt <= startDt) {
+            return res.status(400).json({ message: "End time must be after start time." });
+        }
+
+        const booking = (await prisma.booking.findUnique({
+            where: { id: bookingId },
+            include: { 
+                service: {
+                    include: { shop: { select: { Admin: { select: { 
+                        // @ts-ignore
+                        pushToken: true 
+                    } } } } }
+                },
+                user: { select: { name: true } }
+            }
+        })) as any;
+
+        if (!booking) {
+            return res.status(404).json({ message: "Booking not found" });
+        }
+        if (booking.userId !== userId) {
+            return res.status(403).json({ message: "Unauthorized to reschedule this booking" });
+        }
+        if (booking.status === 'cancelled' || booking.status === 'completed') {
+            return res.status(400).json({ message: "Cannot reschedule cancelled or completed bookings" });
+        }
+
+        // Check for overlaps (ignoring the current booking itself)
+        const conflictingBooking = await prisma.booking.findFirst({
+            where: {
+                id: { not: bookingId },
+                service: { shopId: booking.service.shopId },
+                status: { not: "cancelled" },
+                AND: [
+                    { startTime: { lt: endDt } },
+                    { endTime: { gt: startDt } }
+                ]
+            }
+        });
+
+        if (conflictingBooking) {
+            return res.status(400).json({
+                message: "This exact time slot is already booked. Please select an available slot.",
+                code: "SLOT_UNAVAILABLE"
+            });
+        }
+
+        const updatedBooking = await prisma.booking.update({
+            where: { id: bookingId },
+            data: {
+                startTime: startDt,
+                endTime: endDt
+            }
+        });
+
+        const adminPushToken = booking.service.shop.Admin.pushToken;
+        if (adminPushToken) {
+            // Background notification
+            sendPushNotification(
+                adminPushToken,
+                "Booking Rescheduled 📅",
+                `${booking.user.name} rescheduled their booking.`,
+                { bookingId }
+            );
+        }
+
+        res.status(200).json({ message: "Booking rescheduled successfully", booking: updatedBooking });
+    } catch (error: any) {
+        console.error("Error rescheduling booking:", error);
+        res.status(500).json({ message: "Failed to reschedule booking", error: error.message });
     }
 });
 

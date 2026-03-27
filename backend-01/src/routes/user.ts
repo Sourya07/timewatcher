@@ -336,11 +336,14 @@ router.get("/", verifyToken, async (req, res) => {
 router.get('/adminshops', async (req, res) => {
     try {
         const shops = await prisma.adminShop.findMany({
+            where: { verificationStatus: 'approved' }, // Only show approved shops to users
             include: {
                 services: true,
-                category: true
+                category: true,
+                // @ts-ignore
+                images: true
             }
-        }); // no filter -> all shops
+        });
         return res.status(200).json({ shops });
     } catch (error) {
         console.error('Error fetching shops:', error);
@@ -504,6 +507,242 @@ router.put('/addresses/:id/default', verifyToken, async (req, res) => {
     } catch (error: any) {
         console.error("Error setting default address:", error);
         res.status(500).json({ error: "Failed to set default address" });
+    }
+});
+
+// ----------------------------------------------------------------------
+// REVIEWS APIS
+// ----------------------------------------------------------------------
+
+// 1. Create a review
+router.post('/reviews', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        const { shopId, rating, comment } = req.body;
+
+        if (!shopId || !rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: "Valid shopId and rating (1-5) are required" });
+        }
+
+        // Verify eligibility before creating
+        const shopServices = await prisma.shopService.findMany({
+            where: { shopId: Number(shopId) }
+        });
+        const serviceIds = shopServices.map((s: any) => s.id);
+
+        const completedBooking = await prisma.booking.findFirst({
+            where: {
+                userId,
+                shopServiceId: { in: serviceIds },
+                status: 'completed', // Only if booking is completed
+            }
+        });
+
+        if (!completedBooking) {
+            return res.status(403).json({ error: "You can only review shops you have completed a booking with." });
+        }
+
+        const review = await prisma.review.create({
+            data: {
+                userId,
+                shopId: Number(shopId),
+                rating: Number(rating),
+                comment: comment || null,
+            }
+        });
+
+        res.status(201).json(review);
+    } catch (error) {
+        console.error("Error creating review:", error);
+        res.status(500).json({ error: "Failed to create review" });
+    }
+});
+
+// 2. Check review eligibility
+router.get('/reviews/eligibility/:shopId', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        const shopId = Number(req.params.shopId);
+
+        if (!shopId) return res.status(400).json({ error: "shopId is required" });
+
+        // Check if user has ANY completed booking for this shop
+        const shopServices = await prisma.shopService.findMany({
+            where: { shopId: Number(shopId) }
+        });
+        const serviceIds = shopServices.map((s: any) => s.id);
+
+        const completedBooking = await prisma.booking.findFirst({
+            where: {
+                userId,
+                shopServiceId: { in: serviceIds },
+                status: 'completed',
+            }
+        });
+
+        res.status(200).json({ eligible: !!completedBooking });
+    } catch (error) {
+        console.error("Error checking eligibility:", error);
+        res.status(500).json({ error: "Failed to check eligibility" });
+    }
+});
+
+// 3. Get reviews for a shop
+router.get('/reviews/:shopId', async (req, res) => {
+    try {
+        const shopId = Number(req.params.shopId);
+        const reviews = await prisma.review.findMany({
+            where: { shopId },
+            include: { user: { select: { id: true, name: true, profile: { select: { image: true } } } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        
+        // Calculate average rating
+        const avg = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
+        res.status(200).json({ reviews, averageRating: avg, totalCount: reviews.length });
+    } catch (error) {
+        console.error("Error fetching reviews:", error);
+        res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+});
+
+// ----------------------------------------------------------------------
+// FAVORITES APIS
+// ----------------------------------------------------------------------
+
+// 1. Toggle favorite
+router.post('/favorites', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        const { shopId } = req.body;
+
+        if (!shopId) return res.status(400).json({ error: "shopId is required" });
+
+        const existing = await prisma.favorite.findUnique({
+            where: { userId_shopId: { userId, shopId: Number(shopId) } }
+        });
+
+        if (existing) {
+            // Remove from favorites
+            await prisma.favorite.delete({ where: { id: existing.id } });
+            return res.status(200).json({ message: "Removed from favorites", isFavorite: false });
+        } else {
+            // Add to favorites
+            const favorite = await prisma.favorite.create({
+                data: { userId, shopId: Number(shopId) }
+            });
+            return res.status(201).json({ message: "Added to favorites", isFavorite: true, favorite });
+        }
+    } catch (error) {
+        console.error("Error toggling favorite:", error);
+        res.status(500).json({ error: "Failed to toggle favorite" });
+    }
+});
+
+// 2. Get user favorites
+router.get('/favorites', verifyToken, async (req, res) => {
+    try {
+        const userId = Number(req.user?.id);
+        const favorites = await prisma.favorite.findMany({
+            where: { userId },
+            include: { shop: { include: { services: true, category: true, reviews: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.status(200).json(favorites);
+    } catch (error) {
+        console.error("Error fetching favorites:", error);
+        res.status(500).json({ error: "Failed to fetch favorites" });
+    }
+});
+
+// ----------------------------------------------------------------------
+// DISCOVERY & FEED APIS
+// ----------------------------------------------------------------------
+
+// 1. Home Feed Data (Recommended and Top Rated)
+router.get('/feed/home', async (req, res) => {
+    try {
+        // In a real prod environment, 'recommended' would use ML or user vectors.
+        // For now, return the most recently added shops as 'new' and highest reviews as 'topRated'
+        const latestShops = (await prisma.adminShop.findMany({
+            where: { isOpen: true, verificationStatus: 'approved' },
+            take: 10,
+            orderBy: { id: 'desc' },
+            include: { category: true, reviews: true, services: true,
+                // @ts-ignore
+                images: true 
+            }
+        })) as any;
+
+        // Get top rated based on reviews or just generic shops if no reviews exist yet
+        const popularShops = (await prisma.adminShop.findMany({
+            where: { isOpen: true, verificationStatus: 'approved' },
+            take: 10,
+            include: { category: true, reviews: true, services: true,
+                // @ts-ignore
+                images: true 
+            } 
+        })) as any;
+
+        // Sort popularShops by average review dynamically 
+        popularShops.sort((a: any, b: any) => {
+            const avgA = a.reviews.length > 0 ? a.reviews.reduce((acc: number, crr: any) => acc + crr.rating, 0) / a.reviews.length : 0;
+            const avgB = b.reviews.length > 0 ? b.reviews.reduce((acc: number, crr: any) => acc + crr.rating, 0) / b.reviews.length : 0;
+            return avgB - avgA;
+        });
+
+        res.status(200).json({ recommended: latestShops, popular: popularShops });
+    } catch (error) {
+        console.error("Error fetching home feed:", error);
+        res.status(500).json({ error: "Failed to fetch home feed" });
+    }
+});
+
+// 2. Search & Advanced Filtering
+router.get('/search/shops', async (req, res) => {
+    try {
+        const { query, categoryId, minPrice, maxPrice } = req.query;
+
+        // Base where clause
+        let whereClause: any = { isOpen: true, verificationStatus: 'approved' };
+
+        if (query) {
+            whereClause.OR = [
+                { occupation: { contains: String(query), mode: "insensitive" } },
+                { address: { contains: String(query), mode: "insensitive" } },
+                { services: { some: { name: { contains: String(query), mode: "insensitive" } } } }
+            ];
+        }
+
+        if (categoryId) {
+            whereClause.categoryId = Number(categoryId);
+        }
+
+        // Apply price filters if specified (price is on the Service level)
+        if (minPrice || maxPrice) {
+            whereClause.services = {
+                some: {
+                    price: {
+                        ...(minPrice && { gte: Number(minPrice) }),
+                        ...(maxPrice && { lte: Number(maxPrice) })
+                    }
+                }
+            };
+        }
+
+        const shops = await prisma.adminShop.findMany({
+             where: whereClause,
+             include: { category: true, services: true, reviews: true,
+                // @ts-ignore
+                images: true 
+             }
+        });
+
+        res.status(200).json({ results: shops });
+    } catch (error) {
+         console.error("Error searching shops:", error);
+         res.status(500).json({ error: "Failed to search shops" });
     }
 });
 

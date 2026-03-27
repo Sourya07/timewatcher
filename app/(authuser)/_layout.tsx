@@ -48,7 +48,7 @@ export default function AuthLayout() {
                 </LinearGradient>
 
                 {/* Card */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.surface }]}>
                     <Slot />
                 </View>
             </ScrollView>
@@ -110,7 +110,6 @@ const styles = StyleSheet.create({
         letterSpacing: 0.2,
     },
     card: {
-        backgroundColor: 'white',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         marginTop: -24,
